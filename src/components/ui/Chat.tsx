@@ -40,6 +40,9 @@ const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [apiEndpoint, setApiEndpoint] = useState(
+    '/api/v1/prediction/1323ab8f-7677-4623-b327-fabb67019498'
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -171,16 +174,13 @@ const Chat: React.FC = () => {
    * Sends a user message to the backend and handles the response.
    */
   const query = async (data: { question: string }) => {
-    const response = await fetch(
-      '/api/v1/prediction/1323ab8f-7677-4623-b327-fabb67019498',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      }
-    );
+    const response = await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
     const result = await response.json();
     return result;
   };
@@ -204,6 +204,21 @@ const Chat: React.FC = () => {
         className='flex flex-col flex-1 min-h-0 w-full'
         style={{ height: '100%' }}
       >
+        {/* API Endpoint input */}
+        <div className='w-full bg-black border-b border-[#00ff41] p-2 flex items-center gap-2'>
+          <label htmlFor='api-endpoint' className='text-xs text-[#00ff41] mr-2'>
+            API Endpoint:
+          </label>
+          <input
+            id='api-endpoint'
+            type='text'
+            value={apiEndpoint}
+            onChange={(e) => setApiEndpoint(e.target.value)}
+            className='flex-1 bg-black text-[#00ff41] border border-[#00ff41] px-2 py-1 text-xs font-mono always-focus'
+            style={{ minWidth: 200 }}
+            autoComplete='off'
+          />
+        </div>
         <main
           role='main'
           aria-label='Matrix Chat'
