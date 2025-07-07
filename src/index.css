@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100vh;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background: #000 !important;
+  color: #00ff41;
+  font-family: 'Fira Mono', Consolas, monospace !important;
+  letter-spacing: 0.5px;
+  box-sizing: border-box;
+}
+
+* {
+  box-sizing: border-box;
+  border-radius: 0 !important;
+}
+
+::selection {
+  background: #00ff41;
+  color: #000;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #00ff41;
+  border-radius: 0;
+}
+::-webkit-scrollbar-track {
+  background: #111;
+}
+
+input,
+textarea {
+  background: #000 !important;
+  color: #00ff41 !important;
+  border: 1px solid #00ff41 !important;
+  font-family: 'Fira Mono', Consolas, monospace !important;
+  box-shadow: 0 0 4px #00ff41cc;
+  border-radius: 0 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #00ff41bb !important;
+  opacity: 1;
+}
+
+button {
+  background: #000 !important;
+  color: #00ff41 !important;
+  border: 1px solid #00ff41 !important;
+  font-family: 'Fira Mono', Consolas, monospace !important;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  border-radius: 0 !important;
+  box-shadow: 0 0 4px #00ff41cc;
+}
+button:hover:not(:disabled) {
+  background: #00ff41 !important;
+  color: #000 !important;
+  box-shadow: 0 0 10px #00ff41;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.matrix-bg {
+  border-radius: 0 !important;
+}
+
+.always-focus:focus {
+  outline: 2px solid #00ff41 !important;
+}
+
+body:active .always-focus:not(:focus) {
+  outline: 2px solid #00ff41 !important;
+  /* Safari hack: не всегда работает, но помогает */
+}
