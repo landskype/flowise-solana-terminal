@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { TERMINAL_FONT, TERMINAL_GREEN } from '../theme';
+import { TERMINAL_FONT, TERMINAL_GREEN } from '@/shared/config/theme';
 
 export interface LogEntry {
   id: string;

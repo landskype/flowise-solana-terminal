@@ -1,6 +1,6 @@
 import React from 'react';
-import { TERMINAL_FONT } from '../theme';
-import { extractTextFromChildren } from '../utils';
+import { TERMINAL_FONT } from '@/shared/config/theme';
+import { extractTextFromChildren } from '@/shared/lib/utils';
 
 export const markdownComponents = {
   a: (props: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (

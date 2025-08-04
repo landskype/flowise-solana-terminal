@@ -4,8 +4,8 @@
  */
 
 import React from 'react';
-import { TERMINAL_FONT, TERMINAL_GREEN } from '../theme';
-import type { FlowiseAgent } from '../../types/flowise';
+import { TERMINAL_FONT, TERMINAL_GREEN } from '@/shared/config/theme';
+import type { FlowiseAgent } from '@/shared/types/flowise';
 
 interface AgentInfoProps {
   agent: FlowiseAgent | null;

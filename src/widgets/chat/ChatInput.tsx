@@ -1,5 +1,5 @@
 import React from 'react';
-import { TERMINAL_FONT } from '../theme';
+import { TERMINAL_FONT } from '@/shared/config/theme';
 
 interface ChatInputProps {
   input: string;

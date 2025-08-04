@@ -10,8 +10,8 @@ import 'prismjs/components/prism-json';
 import 'prismjs/components/prism-yaml';
 import 'prismjs/components/prism-markdown';
 import 'prismjs/components/prism-css';
-import { TERMINAL_FONT } from '../theme';
-import { extractTextFromChildren } from '../utils';
+import { TERMINAL_FONT } from '@/shared/config/theme';
+import { extractTextFromChildren } from '@/shared/lib/utils';
 
 // Компонент для блоков кода с подсветкой синтаксиса
 const CodeBlock: React.FC<

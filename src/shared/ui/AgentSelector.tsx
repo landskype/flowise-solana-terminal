@@ -8,9 +8,9 @@ import {
   fetchFlowiseAgents,
   validateFlowiseUrl,
   getDefaultFlowiseUrl,
-} from '../utils/flowiseApi';
-import { logInfo, logError, logWarning } from '../utils/logger';
-import type { FlowiseAgent } from '../../types/flowise';
+} from '@/shared/lib/flowiseApi';
+import { logInfo, logError, logWarning } from '@/shared/lib/logger';
+import type { FlowiseAgent } from '@/shared/types/flowise';
 
 // Using FlowiseAgent interface from flowiseApi.ts
 

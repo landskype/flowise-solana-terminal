@@ -7,7 +7,7 @@ import type {
   FlowiseAgent,
   FlowisePredictionRequest,
   FlowisePredictionResponse,
-} from '../../types/flowise';
+} from '@/shared/types/flowise';
 import {
   logApiRequest,
   logApiResponse,

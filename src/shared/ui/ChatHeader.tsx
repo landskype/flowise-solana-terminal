@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { TERMINAL_FONT, TERMINAL_GREEN, TERMINAL_GREEN_FADED } from '../theme';
+import { TERMINAL_FONT, TERMINAL_GREEN, TERMINAL_GREEN_FADED } from '@/shared/config/theme';
 
 /**
  * Renders the terminal-style header with Matrix branding.

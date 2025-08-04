@@ -6,11 +6,11 @@
 
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import '../styles/Chat.css';
-import { TERMINAL_PROMPT_USER, TERMINAL_PROMPT_AGENT } from '../theme';
-import { markdownComponents } from './markdownConfig';
-import ToolEvent from './ToolEvent';
-import type { ToolEvent as ToolEventType } from './ToolEvent';
+import '@/shared/ui/Chat.css';
+import { TERMINAL_PROMPT_USER, TERMINAL_PROMPT_AGENT } from '@/shared/config/theme';
+import { markdownComponents } from '@/shared/ui/markdownConfig';
+import ToolEvent from '@/entities/chat/ToolEvent';
+import type { ToolEvent as ToolEventType } from '@/entities/chat/ToolEvent';
 
 interface Message {
   id: string;

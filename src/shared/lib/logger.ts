@@ -3,7 +3,7 @@
  * Utility for logging events and API requests
  */
 
-import type { LogEntry } from '../ui/LogViewer';
+import type { LogEntry } from '@/shared/ui/LogViewer';
 
 let logCallback: ((log: LogEntry) => void) | null = null;
 

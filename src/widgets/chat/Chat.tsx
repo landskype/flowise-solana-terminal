@@ -5,28 +5,28 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import '../styles/Chat.css';
-import ChatHeader from './ChatHeader';
+import '@/shared/ui/Chat.css';
+import ChatHeader from '@/shared/ui/ChatHeader';
 import ChatMessages from './ChatMessages';
-import AgentSelector from './AgentSelector';
-import AgentInfo from './AgentInfo';
-import LogViewer from './LogViewer';
-import type { FlowiseAgent } from '../../types/flowise';
-import type { LogEntry } from './LogViewer';
-import type { ToolEvent as ToolEventType } from './ToolEvent';
+import AgentSelector from '@/shared/ui/AgentSelector';
+import AgentInfo from '@/shared/ui/AgentInfo';
+import LogViewer from '@/shared/ui/LogViewer';
+import type { FlowiseAgent } from '@/shared/types/flowise';
+import type { LogEntry } from '@/shared/ui/LogViewer';
+import type { ToolEvent as ToolEventType } from '@/entities/chat/ToolEvent';
 import {
   setLogCallback,
   logInfo,
   logSuccess,
   logError,
   logAgentSelection,
-} from '../utils/logger';
-import { checkFlowiseSSESupport, testSSEConnection } from '../utils/flowiseApi';
+} from '@/shared/lib/logger';
+import { checkFlowiseSSESupport, testSSEConnection } from '@/shared/lib/flowiseApi';
 import {
   initializeFlowiseClient,
   sendPredictionWithSDK,
   deployAgentWithSDK,
-} from '../utils/flowiseSdk';
+} from '@/shared/lib/flowiseSdk';
 
 const AUTOSCROLL_THRESHOLD = 40; // px from bottom to trigger auto-scroll
 const ERROR_MESSAGE =

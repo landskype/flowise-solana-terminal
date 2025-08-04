@@ -4,7 +4,7 @@
  */
 
 import { FlowiseClient } from 'flowise-sdk';
-import type { FlowiseAgent } from '../../types/flowise';
+import type { FlowiseAgent } from '@/shared/types/flowise';
 import {
   logInfo,
   logSuccess,
