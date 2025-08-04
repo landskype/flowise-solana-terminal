@@ -18,7 +18,7 @@ const ChatHeader: React.FC = () => (
       className='text-xl font-bold m-0'
       style={{ color: TERMINAL_GREEN, fontFamily: TERMINAL_FONT }}
     >
-      ai-terminal-v0.3
+      ai-terminal-v0.5
     </h2>
     <p
       className='text-base mt-1 mb-0'

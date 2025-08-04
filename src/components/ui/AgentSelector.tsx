@@ -4,14 +4,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { TERMINAL_FONT, TERMINAL_GREEN, TERMINAL_BG } from '../theme';
 import {
   fetchFlowiseAgents,
   validateFlowiseUrl,
   getDefaultFlowiseUrl,
 } from '../utils/flowiseApi';
+import { logInfo, logError, logWarning } from '../utils/logger';
 import type { FlowiseAgent } from '../../types/flowise';
-import { logInfo, logWarning, logError } from '../utils/logger';
 
 // Using FlowiseAgent interface from flowiseApi.ts
 
@@ -22,19 +21,26 @@ interface AgentSelectorProps {
     agentData?: FlowiseAgent
   ) => void;
   currentAgentId?: string;
+  apiKey: string;
+  setApiKey: (key: string) => void;
+  useSSE: boolean;
+  setUseSSE: (use: boolean) => void;
+  sseSupported: boolean;
 }
 
 const AgentSelector: React.FC<AgentSelectorProps> = ({
   onAgentSelect,
   currentAgentId,
+  apiKey,
+  setApiKey,
+  useSSE,
+  setUseSSE,
+  sseSupported,
 }) => {
   const [agents, setAgents] = useState<FlowiseAgent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flowiseUrl, setFlowiseUrl] = useState(getDefaultFlowiseUrl());
-  const [apiKey, setApiKey] = useState(
-    'Tgd8mkfU6mLlRq89uQg4R0-3pW_wCzt83Yg93hacfCs'
-  );
 
   const fetchAgents = async () => {
     if (!validateFlowiseUrl(flowiseUrl)) {
@@ -65,6 +71,16 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
   useEffect(() => {
     fetchAgents();
   }, [flowiseUrl, apiKey]);
+
+  // Автоматически выбираем агента по умолчанию после загрузки
+  useEffect(() => {
+    if (agents.length > 0 && currentAgentId) {
+      const defaultAgent = agents.find((agent) => agent.id === currentAgentId);
+      if (defaultAgent) {
+        handleAgentSelect(defaultAgent);
+      }
+    }
+  }, [agents, currentAgentId]);
 
   const handleAgentSelect = (agent: FlowiseAgent) => {
     onAgentSelect(agent.id, agent.name, agent);
@@ -104,6 +120,29 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
         >
           {loading ? 'Loading...' : 'Refresh'}
         </button>
+        <div className='flex items-center gap-2'>
+          <label className='text-xs text-[#00ff41]'>SSE:</label>
+          <input
+            type='checkbox'
+            checked={useSSE && sseSupported}
+            onChange={(e) => setUseSSE(e.target.checked)}
+            disabled={!sseSupported}
+            className='w-4 h-4 text-[#00ff41] bg-black border border-[#00ff41]'
+            title={
+              sseSupported
+                ? 'Enable streaming responses (experimental)'
+                : 'SSE not supported'
+            }
+          />
+          {!sseSupported && (
+            <span className='text-xs text-yellow-400'>
+              (Using regular API - working)
+            </span>
+          )}
+          {sseSupported && (
+            <span className='text-xs text-green-400'>(Streaming enabled)</span>
+          )}
+        </div>
       </div>
 
       <div className='flex items-center gap-2'>

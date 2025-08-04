@@ -10,14 +10,25 @@ import type { FlowiseAgent } from '../../types/flowise';
 interface AgentInfoProps {
   agent: FlowiseAgent | null;
   isConnected: boolean;
+  selectedAgentId?: string;
+  onDeployAgent?: () => void;
 }
 
-const AgentInfo: React.FC<AgentInfoProps> = ({ agent, isConnected }) => {
+const AgentInfo: React.FC<AgentInfoProps> = ({
+  agent,
+  isConnected,
+  selectedAgentId,
+  onDeployAgent,
+}) => {
   if (!agent) {
     return (
       <div className='w-full bg-black border-b border-[#00ff41] p-2'>
         <div className='flex items-center gap-2'>
-          <span className='text-xs text-red-400'>No agent selected</span>
+          {selectedAgentId ? (
+            <span className='text-xs text-yellow-400'>Loading agent...</span>
+          ) : (
+            <span className='text-xs text-red-400'>No agent selected</span>
+          )}
         </div>
       </div>
     );
@@ -73,6 +84,15 @@ const AgentInfo: React.FC<AgentInfoProps> = ({ agent, isConnected }) => {
               >
                 {agent.deployed ? 'Deployed' : 'Not Deployed'}
               </span>
+              {!agent.deployed && onDeployAgent && (
+                <button
+                  onClick={onDeployAgent}
+                  className='ml-2 px-2 py-1 text-xs bg-yellow-600 text-yellow-100 border border-yellow-400 hover:bg-yellow-700 transition-colors'
+                  title='Deploy agent via API'
+                >
+                  Deploy
+                </button>
+              )}
             </div>
           )}
         </div>

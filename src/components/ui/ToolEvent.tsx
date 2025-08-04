@@ -15,14 +15,14 @@ interface ToolEventProps {
 
 const ToolEvent: React.FC<ToolEventProps> = ({ event }) => {
   const getToolIcon = (toolName: string) => {
-    if (toolName.includes('date') || toolName.includes('time')) return '🕐';
-    if (toolName.includes('search') || toolName.includes('web')) return '🔍';
-    if (toolName.includes('file') || toolName.includes('read')) return '📁';
-    if (toolName.includes('write') || toolName.includes('save')) return '💾';
-    if (toolName.includes('curl') || toolName.includes('http')) return '🌐';
-    if (toolName.includes('memory')) return '🧠';
-    if (toolName.includes('mcp')) return '🔧';
-    return '⚙️';
+    if (toolName.includes('date') || toolName.includes('time')) return '';
+    if (toolName.includes('search') || toolName.includes('web')) return '';
+    if (toolName.includes('file') || toolName.includes('read')) return '';
+    if (toolName.includes('write') || toolName.includes('save')) return '';
+    if (toolName.includes('curl') || toolName.includes('http')) return '';
+    if (toolName.includes('memory')) return '';
+    if (toolName.includes('mcp')) return '';
+    return '';
   };
 
   const formatToolOutput = (output: any) => {
@@ -40,9 +40,7 @@ const ToolEvent: React.FC<ToolEventProps> = ({ event }) => {
   return (
     <div className='tool-event bg-terminal-dark border border-terminal-gray rounded p-3 my-2 font-terminal text-sm'>
       <div className='flex items-center gap-2 mb-2'>
-        <span className='text-terminal-green'>
-          {event.type === 'calledTools' ? '🔧' : '✅'}
-        </span>
+        <span className='text-terminal-green'></span>
         <span className='text-terminal-green font-bold'>
           {event.type === 'calledTools' ? 'Tool Called' : 'Tool Used'}
         </span>

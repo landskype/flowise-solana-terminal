@@ -130,6 +130,57 @@ const Chat: React.FC = () => {
     checkSSE();
   }, [apiKey]);
 
+  // Устанавливаем агента по умолчанию при инициализации
+  useEffect(() => {
+    if (selectedAgentId && !selectedAgent) {
+      // Создаем временный объект агента для отображения
+      const defaultAgent: FlowiseAgent = {
+        id: selectedAgentId,
+        name: 'Loading...', // Временное имя
+        deployed: false,
+        category: 'default',
+        description: 'Default agent',
+      };
+      setSelectedAgent(defaultAgent);
+      setIsConnected(true);
+      logInfo('Default agent set', { agentId: selectedAgentId });
+
+      // Проверяем реальный статус деплоя для временного агента
+      checkAgentDeploymentStatus(selectedAgentId).then((isDeployed) => {
+        setSelectedAgent((prev) =>
+          prev ? { ...prev, deployed: isDeployed } : null
+        );
+        logInfo('Temporary agent deployment status checked', {
+          agentId: selectedAgentId,
+          isDeployed,
+        });
+      });
+    }
+  }, [selectedAgentId, selectedAgent]);
+
+  // Автоматическая периодическая проверка статуса деплоя
+  useEffect(() => {
+    if (!selectedAgent || !selectedAgentId) return;
+
+    const checkDeploymentInterval = setInterval(async () => {
+      const isActuallyDeployed = await checkAgentDeploymentStatus(
+        selectedAgentId
+      );
+      if (isActuallyDeployed !== selectedAgent.deployed) {
+        setSelectedAgent((prev) =>
+          prev ? { ...prev, deployed: isActuallyDeployed } : null
+        );
+        logInfo('Agent deployment status auto-updated', {
+          agentId: selectedAgentId,
+          wasDeployed: selectedAgent.deployed,
+          isActuallyDeployed,
+        });
+      }
+    }, 30000); // Проверяем каждые 30 секунд
+
+    return () => clearInterval(checkDeploymentInterval);
+  }, [selectedAgent, selectedAgentId]);
+
   /**
    * Appends a message and clears any previous typing effect.
    */
@@ -171,33 +222,6 @@ const Chat: React.FC = () => {
    */
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
-
-    // Check if agent is deployed and auto-deploy if needed
-    if (selectedAgent && !selectedAgent.deployed) {
-      logInfo('Agent not deployed, attempting auto-deployment', {
-        agentId: selectedAgent.id,
-      });
-
-      const success = await deployAgentWithSDK(
-        selectedAgent.id,
-        'http://localhost:3000',
-        apiKey
-      );
-
-      if (success) {
-        setSelectedAgent((prev) => (prev ? { ...prev, deployed: true } : null));
-        logSuccess('Agent auto-deployed successfully');
-      } else {
-        const warningMessage: Message = {
-          id: uniqueId(),
-          text: '⚠️ Warning: Failed to auto-deploy agent. Messages may not be processed correctly.',
-          isUser: false,
-          timestamp: new Date(),
-        };
-        appendMessageClearingTyping(warningMessage);
-        return;
-      }
-    }
 
     setIsLoading(true);
     const userMessage: Message = {
@@ -286,9 +310,38 @@ const Chat: React.FC = () => {
   };
 
   /**
+   * Checks if an agent is deployed by making a test request
+   */
+  const checkAgentDeploymentStatus = async (
+    agentId: string
+  ): Promise<boolean> => {
+    try {
+      // Попробуем сделать тестовый запрос к агенту
+      const testResponse = await fetch(
+        `http://localhost:3000/api/v1/prediction/${agentId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({ question: 'test' }),
+        }
+      );
+
+      // Если получаем ответ (даже с ошибкой), значит агент деплоен
+      return testResponse.status !== 404;
+    } catch (error) {
+      // Если получаем ошибку сети, считаем что агент не деплоен
+      logError('Failed to check agent deployment status', { error, agentId });
+      return false;
+    }
+  };
+
+  /**
    * Handles agent selection from AgentSelector
    */
-  const handleAgentSelect = (
+  const handleAgentSelect = async (
     agentId: string,
     agentName: string,
     agentData?: FlowiseAgent
@@ -297,6 +350,28 @@ const Chat: React.FC = () => {
     setSelectedAgent(agentData || null);
     setIsConnected(true);
     logAgentSelection(agentId, agentName);
+
+    // Если у нас есть данные агента, обновляем информацию
+    if (agentData) {
+      logInfo('Agent selected with full data', {
+        agentId,
+        agentName,
+        deployed: agentData.deployed,
+      });
+
+      // Проверяем реальный статус деплоя
+      const isActuallyDeployed = await checkAgentDeploymentStatus(agentId);
+      if (isActuallyDeployed !== agentData.deployed) {
+        setSelectedAgent((prev) =>
+          prev ? { ...prev, deployed: isActuallyDeployed } : null
+        );
+        logInfo('Agent deployment status updated', {
+          agentId,
+          wasDeployed: agentData.deployed,
+          isActuallyDeployed,
+        });
+      }
+    }
   };
 
   /**
@@ -321,7 +396,7 @@ const Chat: React.FC = () => {
       // Show success message
       const successMessage: Message = {
         id: uniqueId(),
-        text: 'Agent deployed successfully! You can now send messages. (Using SDK - working)',
+        text: 'info: Agent deployed successfully! You can now send messages.',
         isUser: false,
         timestamp: new Date(),
       };
@@ -332,7 +407,7 @@ const Chat: React.FC = () => {
       // Show error message
       const errorMessage: Message = {
         id: uniqueId(),
-        text: 'nfFailed to deploy agent. Please try again or deploy manually in Flowise.',
+        text: 'info: Failed to deploy agent. Please try again or deploy manually in Flowise.',
         isUser: false,
         timestamp: new Date(),
       };
@@ -562,73 +637,21 @@ const Chat: React.FC = () => {
         <AgentSelector
           onAgentSelect={handleAgentSelect}
           currentAgentId={selectedAgentId}
+          apiKey={apiKey}
+          setApiKey={setApiKey}
+          useSSE={useSSE}
+          setUseSSE={setUseSSE}
+          sseSupported={sseSupported}
         />
 
         {/* Agent Info */}
-        <AgentInfo agent={selectedAgent} isConnected={isConnected} />
+        <AgentInfo
+          agent={selectedAgent}
+          isConnected={isConnected}
+          selectedAgentId={selectedAgentId}
+          onDeployAgent={handleDeployAgent}
+        />
 
-        {/* Deployment Warning */}
-        {selectedAgent && !selectedAgent.deployed && (
-          <div className='w-full bg-yellow-900 border-b border-yellow-400 p-2'>
-            <div className='flex items-center justify-between'>
-              <div className='flex items-center gap-2'>
-                <span className='text-yellow-400'>⚠️</span>
-                <span className='text-xs text-yellow-400'>
-                  Agent "{selectedAgent.name}" is not deployed. Please deploy
-                  the agent in Flowise before sending messages.
-                </span>
-              </div>
-              <button
-                onClick={handleDeployAgent}
-                className='px-2 py-1 text-xs bg-yellow-600 text-yellow-100 border border-yellow-400 hover:bg-yellow-700'
-                title='Deploy agent via API'
-              >
-                Deploy
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* API Configuration */}
-        <div className='w-full bg-black border-b border-[#00ff41] p-2 flex items-center gap-2'>
-          <label htmlFor='chat-api-key' className='text-xs text-[#00ff41] mr-2'>
-            API Key:
-          </label>
-          <input
-            id='chat-api-key'
-            type='password'
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            className='flex-1 bg-black text-[#00ff41] border border-[#00ff41] px-2 py-1 text-xs font-mono'
-            placeholder='Enter API key'
-            autoComplete='off'
-          />
-          <div className='flex items-center gap-2'>
-            <label className='text-xs text-[#00ff41]'>SSE:</label>
-            <input
-              type='checkbox'
-              checked={useSSE && sseSupported}
-              onChange={(e) => setUseSSE(e.target.checked)}
-              disabled={!sseSupported}
-              className='w-4 h-4 text-[#00ff41] bg-black border border-[#00ff41]'
-              title={
-                sseSupported
-                  ? 'Enable streaming responses (experimental)'
-                  : 'SSE not supported'
-              }
-            />
-            {!sseSupported && (
-              <span className='text-xs text-yellow-400'>
-                (Using regular API - working)
-              </span>
-            )}
-            {sseSupported && (
-              <span className='text-xs text-green-400'>
-                (Streaming enabled)
-              </span>
-            )}
-          </div>
-        </div>
         <main
           role='main'
           aria-label='Matrix Chat'
