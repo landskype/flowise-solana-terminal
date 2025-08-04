@@ -4,8 +4,8 @@ export interface ToolEvent {
   id: string;
   type: 'calledTools' | 'usedTools';
   toolName?: string;
-  toolInput?: any;
-  toolOutput?: any;
+  toolInput?: Record<string, unknown>;
+  toolOutput?: unknown;
   timestamp: Date;
 }
 
@@ -25,7 +25,7 @@ const ToolEvent: React.FC<ToolEventProps> = ({ event }) => {
     return '';
   };
 
-  const formatToolOutput = (output: any) => {
+  const formatToolOutput = (output: unknown): string => {
     if (typeof output === 'string') {
       try {
         const parsed = JSON.parse(output);
@@ -37,17 +37,43 @@ const ToolEvent: React.FC<ToolEventProps> = ({ event }) => {
     return JSON.stringify(output, null, 2);
   };
 
+  const getToolEventStyle = () => {
+    if (event.type === 'calledTools') {
+      return {
+        backgroundColor: 'rgba(59, 130, 246, 0.1)', // blue background
+        borderColor: 'rgba(59, 130, 246, 0.3)', // blue border
+        borderLeft: '4px solid rgba(59, 130, 246, 0.8)', // blue left border
+      };
+    } else {
+      return {
+        backgroundColor: 'rgba(34, 197, 94, 0.1)', // green background
+        borderColor: 'rgba(34, 197, 94, 0.3)', // green border
+        borderLeft: '4px solid rgba(34, 197, 94, 0.8)', // green left border
+      };
+    }
+  };
+
+  const getToolEventTextColor = () => {
+    if (event.type === 'calledTools') {
+      return 'text-blue-300'; // blue text
+    } else {
+      return 'text-green-300'; // green text
+    }
+  };
+
   return (
-    <div className='tool-event bg-terminal-dark border border-terminal-gray rounded p-3 my-2 font-terminal text-sm'>
+    <div
+      className='tool-event border rounded p-3 my-2 font-terminal text-sm'
+      style={getToolEventStyle()}
+    >
       <div className='flex items-center gap-2 mb-2'>
-        <span className='text-terminal-green'></span>
-        <span className='text-terminal-green font-bold'>
+        <span className={`${getToolEventTextColor()} font-bold`}>
           {event.type === 'calledTools' ? 'Tool Called' : 'Tool Used'}
         </span>
         {event.toolName && (
           <>
             <span className='text-gray-400'>•</span>
-            <span className='text-blue-400'>
+            <span className={`${getToolEventTextColor()} font-mono`}>
               {getToolIcon(event.toolName)} {event.toolName}
             </span>
           </>
@@ -59,8 +85,12 @@ const ToolEvent: React.FC<ToolEventProps> = ({ event }) => {
 
       {event.toolInput && (
         <div className='mb-2'>
-          <div className='text-gray-400 text-xs mb-1'>Input:</div>
-          <pre className='bg-black p-2 rounded text-xs overflow-x-auto'>
+          <div
+            className={`${getToolEventTextColor()} text-xs mb-1 font-semibold`}
+          >
+            Input:
+          </div>
+          <pre className='bg-black bg-opacity-50 p-2 rounded text-xs overflow-x-auto border border-gray-600'>
             {JSON.stringify(event.toolInput, null, 2)}
           </pre>
         </div>
@@ -68,8 +98,12 @@ const ToolEvent: React.FC<ToolEventProps> = ({ event }) => {
 
       {event.toolOutput && (
         <div>
-          <div className='text-gray-400 text-xs mb-1'>Output:</div>
-          <pre className='bg-black p-2 rounded text-xs overflow-x-auto text-green-400'>
+          <div
+            className={`${getToolEventTextColor()} text-xs mb-1 font-semibold`}
+          >
+            Output:
+          </div>
+          <pre className='bg-black bg-opacity-50 p-2 rounded text-xs overflow-x-auto border border-gray-600 text-green-300'>
             {formatToolOutput(event.toolOutput)}
           </pre>
         </div>
