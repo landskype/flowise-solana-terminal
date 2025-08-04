@@ -11,6 +11,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/api/v1/chatflows': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });

@@ -8,6 +8,18 @@ import React, { useState, useRef, useEffect } from 'react';
 import '../styles/Chat.css';
 import ChatHeader from './ChatHeader';
 import ChatMessages from './ChatMessages';
+import AgentSelector from './AgentSelector';
+import AgentInfo from './AgentInfo';
+import LogViewer from './LogViewer';
+import type { FlowiseAgent } from '../../types/flowise';
+import type { LogEntry } from './LogViewer';
+import {
+  setLogCallback,
+  logInfo,
+  logSuccess,
+  logError,
+  logAgentSelection,
+} from '../utils/logger';
 
 const AUTOSCROLL_THRESHOLD = 40; // px from bottom to trigger auto-scroll
 const TYPING_INTERVAL = 30; // ms per character for typing effect
@@ -43,11 +55,30 @@ const Chat: React.FC = () => {
   const [apiEndpoint, setApiEndpoint] = useState(
     '/api/v1/prediction/1323ab8f-7677-4623-b327-fabb67019498'
   );
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(
+    '1323ab8f-7677-4623-b327-fabb67019498'
+  );
+  const [selectedAgent, setSelectedAgent] = useState<FlowiseAgent | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [apiKey, setApiKey] = useState(
+    'Tgd8mkfU6mLlRq89uQg4R0-3pW_wCzt83Yg93hacfCs'
+  );
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [isLogVisible, setIsLogVisible] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevMessagesLength = useRef(messages.length);
+
+  // Initialize logging system
+  useEffect(() => {
+    setLogCallback((logEntry) => {
+      setLogs((prev) => [...prev, logEntry]);
+    });
+
+    logInfo('Chat application started');
+  }, []);
 
   /**
    * Appends a message and clears any previous typing effect.
@@ -171,18 +202,57 @@ const Chat: React.FC = () => {
   };
 
   /**
+   * Handles agent selection from AgentSelector
+   */
+  const handleAgentSelect = (
+    agentId: string,
+    agentName: string,
+    agentData?: FlowiseAgent
+  ) => {
+    setSelectedAgentId(agentId);
+    setSelectedAgent(agentData || null);
+    setApiEndpoint(`/api/v1/prediction/${agentId}`);
+    setIsConnected(true);
+    logAgentSelection(agentId, agentName);
+  };
+
+  /**
    * Sends a user message to the backend and handles the response.
    */
   const query = async (data: { question: string }) => {
-    const response = await fetch(apiEndpoint, {
-      method: 'POST',
-      headers: {
+    const startTime = Date.now();
+
+    try {
+      const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    const result = await response.json();
-    return result;
+      };
+
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+
+      const response = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
+
+      const duration = Date.now() - startTime;
+      const status = response.status;
+
+      if (status >= 200 && status < 300) {
+        logSuccess(`Message sent successfully`, { duration, status });
+      } else {
+        logError(`Message failed with status ${status}`, { duration, status });
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logError('Failed to send message', { error, duration });
+      throw error;
+    }
   };
 
   // TODO: Add error boundary, loading indicator improvements, and better accessibility.
@@ -204,7 +274,16 @@ const Chat: React.FC = () => {
         className='flex flex-col flex-1 min-h-0 w-full'
         style={{ height: '100%' }}
       >
-        {/* API Endpoint input */}
+        {/* Agent Selector */}
+        <AgentSelector
+          onAgentSelect={handleAgentSelect}
+          currentAgentId={selectedAgentId}
+        />
+
+        {/* Agent Info */}
+        <AgentInfo agent={selectedAgent} isConnected={isConnected} />
+
+        {/* API Configuration */}
         <div className='w-full bg-black border-b border-[#00ff41] p-2 flex items-center gap-2'>
           <label htmlFor='api-endpoint' className='text-xs text-[#00ff41] mr-2'>
             API Endpoint:
@@ -216,6 +295,18 @@ const Chat: React.FC = () => {
             onChange={(e) => setApiEndpoint(e.target.value)}
             className='flex-1 bg-black text-[#00ff41] border border-[#00ff41] px-2 py-1 text-xs font-mono always-focus'
             style={{ minWidth: 200 }}
+            autoComplete='off'
+          />
+          <label htmlFor='chat-api-key' className='text-xs text-[#00ff41] mr-2'>
+            API Key:
+          </label>
+          <input
+            id='chat-api-key'
+            type='password'
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            className='flex-1 bg-black text-[#00ff41] border border-[#00ff41] px-2 py-1 text-xs font-mono'
+            placeholder='Enter API key'
             autoComplete='off'
           />
         </div>
@@ -261,6 +352,13 @@ const Chat: React.FC = () => {
           />
         </main>
       </div>
+
+      {/* Log Viewer */}
+      <LogViewer
+        logs={logs}
+        isVisible={isLogVisible}
+        onToggle={() => setIsLogVisible(!isLogVisible)}
+      />
     </div>
   );
 };
