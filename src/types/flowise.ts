@@ -31,4 +31,4 @@ export interface FlowisePredictionResponse {
   sourceDocuments?: any[];
   usedTools?: any[];
   chatId?: string;
-} 
+}

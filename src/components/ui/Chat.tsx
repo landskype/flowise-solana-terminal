@@ -358,6 +358,7 @@ const Chat: React.FC = () => {
         logs={logs}
         isVisible={isLogVisible}
         onToggle={() => setIsLogVisible(!isLogVisible)}
+        onClearLogs={() => setLogs([])}
       />
     </div>
   );
