@@ -1,0 +1,242 @@
+/* Стили для подсветки синтаксиса кода */
+.terminal-pre {
+  position: relative;
+  background: #1a1a1a !important;
+  border: 1px solid #333 !important;
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.terminal-pre code {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: #00ff41 !important;
+}
+
+/* Стили для разных языков программирования */
+.language-javascript,
+.language-js {
+  color: #00ff41 !important;
+}
+
+.language-typescript,
+.language-ts {
+  color: #00ff41 !important;
+}
+
+.language-jsx,
+.language-tsx {
+  color: #00ff41 !important;
+}
+
+.language-python {
+  color: #00ff41 !important;
+}
+
+.language-bash,
+.language-shell {
+  color: #00ff41 !important;
+}
+
+.language-json {
+  color: #00ff41 !important;
+}
+
+.language-yaml,
+.language-yml {
+  color: #00ff41 !important;
+}
+
+.language-markdown,
+.language-md {
+  color: #00ff41 !important;
+}
+
+.language-css {
+  color: #00ff41 !important;
+}
+
+/* Стили для токенов Prism.js */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #6a737d !important;
+  font-style: italic;
+}
+
+.token.punctuation {
+  color: #d1d5da !important;
+}
+
+.token.namespace {
+  opacity: 0.7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #79c0ff !important;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: #a5d6ff !important;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: #ff7b72 !important;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #ffa657 !important;
+}
+
+.token.function,
+.token.class-name {
+  color: #d2a8ff !important;
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #ffa198 !important;
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+/* Стили для inline кода */
+.terminal-code {
+  background: #2d2d2d !important;
+  color: #00ff41 !important;
+  padding: 0.125rem 0.25rem !important;
+  border-radius: 3px;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+  font-size: 0.875rem;
+  border: 1px solid #444;
+}
+
+/* Анимация для копирования */
+.terminal-pre:hover,
+.terminal-code:hover {
+  border-color: #00ff41 !important;
+  transition: border-color 0.2s ease;
+}
+
+/* Стили для заголовков */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: #00ff41 !important;
+  font-weight: bold;
+  margin: 0.5em 0;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+}
+
+/* Стили для списков */
+ul,
+ol {
+  color: #00ff41 !important;
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+li {
+  color: #00ff41 !important;
+  margin: 0.2em 0;
+}
+
+/* Стили для ссылок */
+a {
+  color: #00ff41 !important;
+  text-decoration: underline;
+}
+
+a:hover {
+  color: #00cc33 !important;
+}
+
+/* Стили для блоков цитат */
+blockquote {
+  border-left: 4px solid #00ff41;
+  padding-left: 1rem;
+  margin: 0.5em 0;
+  font-style: italic;
+  color: #cccccc !important;
+}
+
+/* Стили для таблиц */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0;
+  color: #00ff41 !important;
+}
+
+th,
+td {
+  border: 1px solid #444;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+th {
+  background: #2d2d2d;
+  font-weight: bold;
+}
+
+/* Стили для горизонтальных линий */
+hr {
+  border: none;
+  border-top: 2px solid #00ff41;
+  margin: 1em 0;
+}
+
+/* Стили для жирного и курсивного текста */
+strong {
+  font-weight: bold;
+  color: #00ff41 !important;
+}
+
+em {
+  font-style: italic;
+  color: #00ff41 !important;
+}

@@ -13,6 +13,7 @@ import AgentInfo from './AgentInfo';
 import LogViewer from './LogViewer';
 import type { FlowiseAgent } from '../../types/flowise';
 import type { LogEntry } from './LogViewer';
+import type { ToolEvent as ToolEventType } from './ToolEvent';
 import {
   setLogCallback,
   logInfo,
@@ -47,6 +48,7 @@ interface Message {
   isUser: boolean;
   timestamp: Date;
   isTyping?: boolean;
+  toolEvents?: ToolEventType[];
 }
 
 /**
@@ -346,6 +348,7 @@ const Chat: React.FC = () => {
     messageId: string
   ) => {
     let fullResponse = '';
+    const toolEvents: ToolEventType[] = [];
 
     try {
       const completion = await sendPredictionWithSDK(
@@ -358,6 +361,13 @@ const Chat: React.FC = () => {
       const stream = completion as AsyncGenerator<string, void, unknown>;
 
       for await (const chunk of stream) {
+        // Выводим raw данные в консоль
+        console.log('=== RAW STREAM CHUNK ===');
+        console.log('Type:', typeof chunk);
+        console.log('Value:', chunk);
+        console.log('Stringified:', JSON.stringify(chunk, null, 2));
+        console.log('========================');
+
         // Handle different chunk formats
         let textChunk = '';
         if (typeof chunk === 'string') {
@@ -365,6 +375,45 @@ const Chat: React.FC = () => {
         } else if (chunk && typeof chunk === 'object') {
           // Extract text from object
           const obj = chunk as Record<string, unknown>;
+
+          // Обрабатываем события инструментов
+          if (obj.event === 'calledTools' && obj.data) {
+            try {
+              const toolCalls = JSON.parse(String(obj.data));
+              if (Array.isArray(toolCalls)) {
+                toolCalls.forEach((toolCall, index) => {
+                  const toolEvent: ToolEventType = {
+                    id: `${messageId}-called-${index}`,
+                    type: 'calledTools',
+                    toolName: toolCall.name,
+                    toolInput: toolCall.args,
+                    timestamp: new Date(),
+                  };
+                  toolEvents.push(toolEvent);
+                });
+              }
+            } catch (error) {
+              console.error('Failed to parse calledTools data:', error);
+            }
+          } else if (obj.event === 'usedTools' && obj.data) {
+            try {
+              const usedTools = Array.isArray(obj.data) ? obj.data : [obj.data];
+              usedTools.forEach((usedTool, index) => {
+                const toolEvent: ToolEventType = {
+                  id: `${messageId}-used-${index}`,
+                  type: 'usedTools',
+                  toolName: usedTool.tool,
+                  toolInput: usedTool.toolInput,
+                  toolOutput: usedTool.toolOutput,
+                  timestamp: new Date(),
+                };
+                toolEvents.push(toolEvent);
+              });
+            } catch (error) {
+              console.error('Failed to parse usedTools data:', error);
+            }
+          }
+
           if ('text' in obj) {
             textChunk = String(obj.text);
           } else if ('response' in obj) {
@@ -386,6 +435,7 @@ const Chat: React.FC = () => {
           textChunk.includes('"event":"nextAgentFlow"') ||
           textChunk.includes('"event":"agentFlowExecutedData"') ||
           textChunk.includes('"event":"calledTools"') ||
+          textChunk.includes('"event":"usedTools"') ||
           textChunk.includes('"event":"usageMetadata"') ||
           textChunk.includes('"event":"metadata"') ||
           textChunk.includes('"event":"end"')
@@ -410,7 +460,7 @@ const Chat: React.FC = () => {
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === messageId
-              ? { ...msg, text: fullResponse, isTyping: false }
+              ? { ...msg, text: fullResponse, isTyping: false, toolEvents }
               : msg
           )
         );
@@ -462,6 +512,25 @@ const Chat: React.FC = () => {
       }
 
       const result = await response.json();
+
+      // Выводим raw данные в консоль
+      console.log('=== RAW API RESPONSE ===');
+      console.log('Type:', typeof result);
+      console.log('Value:', result);
+      console.log('Stringified:', JSON.stringify(result, null, 2));
+      console.log('========================');
+
+      // Проверяем, есть ли информация об использованных инструментах
+      if (result.usedTools && Array.isArray(result.usedTools)) {
+        console.log('=== TOOLS USED IN API RESPONSE ===');
+        result.usedTools.forEach(
+          (tool: Record<string, unknown>, index: number) => {
+            console.log(`Tool ${index + 1}:`, tool);
+          }
+        );
+        console.log('==================================');
+      }
+
       return result;
     } catch (error) {
       const duration = Date.now() - startTime;
