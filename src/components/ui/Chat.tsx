@@ -49,6 +49,11 @@ interface Message {
   timestamp: Date;
   isTyping?: boolean;
   toolEvents?: ToolEventType[];
+  contentBlocks?: Array<{
+    type: 'text' | 'tool';
+    content: string | ToolEventType;
+    timestamp: Date;
+  }>;
 }
 
 /**
@@ -254,11 +259,21 @@ const Chat: React.FC = () => {
           // Fallback to regular API
           const response = await query({ question: inputValue });
           const fullText = response.text || response.response || ERROR_MESSAGE;
+
+          // Create contentBlocks for fallback response
+          const contentBlocks = [
+            {
+              type: 'text' as const,
+              content: fullText,
+              timestamp: new Date(),
+            },
+          ];
+
           // Update message directly without typing effect
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === botMessage.id
-                ? { ...msg, text: fullText, isTyping: false }
+                ? { ...msg, text: fullText, isTyping: false, contentBlocks }
                 : msg
             )
           );
@@ -272,11 +287,21 @@ const Chat: React.FC = () => {
             false // no streaming
           );
           const fullText = response.text || ERROR_MESSAGE;
+
+          // Create contentBlocks for non-streaming response
+          const contentBlocks = [
+            {
+              type: 'text' as const,
+              content: fullText,
+              timestamp: new Date(),
+            },
+          ];
+
           // Update message directly without typing effect
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === botMessage.id
-                ? { ...msg, text: fullText, isTyping: false }
+                ? { ...msg, text: fullText, isTyping: false, contentBlocks }
                 : msg
             )
           );
@@ -285,11 +310,21 @@ const Chat: React.FC = () => {
           // Fallback to regular API
           const response = await query({ question: inputValue });
           const fullText = response.text || response.response || ERROR_MESSAGE;
+
+          // Create contentBlocks for API response
+          const contentBlocks = [
+            {
+              type: 'text' as const,
+              content: fullText,
+              timestamp: new Date(),
+            },
+          ];
+
           // Update message directly without typing effect
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === botMessage.id
-                ? { ...msg, text: fullText, isTyping: false }
+                ? { ...msg, text: fullText, isTyping: false, contentBlocks }
                 : msg
             )
           );
@@ -297,10 +332,20 @@ const Chat: React.FC = () => {
       }
     } catch (error) {
       console.error('Error:', error);
+
+      // Create contentBlocks for error message
+      const contentBlocks = [
+        {
+          type: 'text' as const,
+          content: ERROR_MESSAGE,
+          timestamp: new Date(),
+        },
+      ];
+
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === botMessage.id
-            ? { ...msg, text: ERROR_MESSAGE, isTyping: false }
+            ? { ...msg, text: ERROR_MESSAGE, isTyping: false, contentBlocks }
             : msg
         )
       );
@@ -423,7 +468,12 @@ const Chat: React.FC = () => {
     messageId: string
   ) => {
     let fullResponse = '';
-    const toolEvents: ToolEventType[] = [];
+    let currentTextBlock = '';
+    const contentBlocks: Array<{
+      type: 'text' | 'tool';
+      content: string | ToolEventType;
+      timestamp: Date;
+    }> = [];
 
     try {
       const completion = await sendPredictionWithSDK(
@@ -445,6 +495,8 @@ const Chat: React.FC = () => {
 
         // Handle different chunk formats
         let textChunk = '';
+        let hasToolEvent = false;
+
         if (typeof chunk === 'string') {
           textChunk = chunk;
         } else if (chunk && typeof chunk === 'object') {
@@ -453,6 +505,18 @@ const Chat: React.FC = () => {
 
           // Обрабатываем события инструментов
           if (obj.event === 'calledTools' && obj.data) {
+            hasToolEvent = true;
+
+            // Если есть накопленный текст, добавляем его как блок
+            if (currentTextBlock) {
+              contentBlocks.push({
+                type: 'text',
+                content: currentTextBlock,
+                timestamp: new Date(),
+              });
+              currentTextBlock = '';
+            }
+
             try {
               const toolCalls = JSON.parse(String(obj.data));
               if (Array.isArray(toolCalls)) {
@@ -464,13 +528,29 @@ const Chat: React.FC = () => {
                     toolInput: toolCall.args,
                     timestamp: new Date(),
                   };
-                  toolEvents.push(toolEvent);
+                  contentBlocks.push({
+                    type: 'tool',
+                    content: toolEvent,
+                    timestamp: new Date(),
+                  });
                 });
               }
             } catch (error) {
               console.error('Failed to parse calledTools data:', error);
             }
           } else if (obj.event === 'usedTools' && obj.data) {
+            hasToolEvent = true;
+
+            // Если есть накопленный текст, добавляем его как блок
+            if (currentTextBlock) {
+              contentBlocks.push({
+                type: 'text',
+                content: currentTextBlock,
+                timestamp: new Date(),
+              });
+              currentTextBlock = '';
+            }
+
             try {
               const usedTools = Array.isArray(obj.data) ? obj.data : [obj.data];
               usedTools.forEach((usedTool, index) => {
@@ -482,7 +562,11 @@ const Chat: React.FC = () => {
                   toolOutput: usedTool.toolOutput,
                   timestamp: new Date(),
                 };
-                toolEvents.push(toolEvent);
+                contentBlocks.push({
+                  type: 'tool',
+                  content: toolEvent,
+                  timestamp: new Date(),
+                });
               });
             } catch (error) {
               console.error('Failed to parse usedTools data:', error);
@@ -530,12 +614,34 @@ const Chat: React.FC = () => {
           }
         }
 
+        // Накопляем текст в текущем блоке
+        if (textChunk && !hasToolEvent) {
+          currentTextBlock += textChunk;
+        }
+
         fullResponse += textChunk;
+
         // Update the message in real-time without typing effect
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === messageId
-              ? { ...msg, text: fullResponse, isTyping: false, toolEvents }
+              ? {
+                  ...msg,
+                  text: fullResponse,
+                  isTyping: false,
+                  contentBlocks: [
+                    ...contentBlocks,
+                    ...(currentTextBlock
+                      ? [
+                          {
+                            type: 'text' as const,
+                            content: currentTextBlock,
+                            timestamp: new Date(),
+                          },
+                        ]
+                      : []),
+                  ],
+                }
               : msg
           )
         );

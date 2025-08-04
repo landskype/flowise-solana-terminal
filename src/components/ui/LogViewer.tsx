@@ -148,7 +148,13 @@ const LogViewer: React.FC<LogViewerProps> = ({
       <button
         onClick={onToggle}
         className='fixed bottom-4 right-4 bg-black text-[#00ff41] border border-[#00ff41] px-3 py-2 text-xs font-mono hover:bg-[#00ff41] hover:text-black transition-colors z-50 shadow-lg'
-        style={{ position: 'fixed', bottom: '16px', right: '16px' }}
+        style={{
+          position: 'fixed',
+          bottom: '16px',
+          right: '16px',
+          backgroundColor: '#000000',
+          background: '#000000',
+        }}
       >
         📋 Logs ({logs.length})
       </button>
@@ -164,12 +170,17 @@ const LogViewer: React.FC<LogViewerProps> = ({
         width: `${size.width}px`,
         height: `${size.height}px`,
         cursor: isDragging ? 'grabbing' : 'default',
+        backgroundColor: '#000000',
+        backdropFilter: 'none',
+        opacity: 1,
+        background: '#000000',
       }}
     >
       {/* Header */}
       <div
         ref={dragRef}
         className='flex items-center justify-between p-2 border-b border-[#00ff41] bg-black cursor-grab'
+        style={{ backgroundColor: '#000000' }}
         onMouseDown={handleMouseDown}
       >
         <h3 className='text-xs text-[#00ff41] font-mono font-bold'>
@@ -184,7 +195,10 @@ const LogViewer: React.FC<LogViewerProps> = ({
       </div>
 
       {/* Logs Container */}
-      <div className='flex-1 overflow-y-auto p-2 space-y-1'>
+      <div
+        className='flex-1 overflow-y-auto p-2 space-y-1'
+        style={{ backgroundColor: '#000000' }}
+      >
         {logs.length === 0 ? (
           <div className='text-xs text-[#00ff41] opacity-50 text-center py-4'>
             No logs yet...
@@ -254,7 +268,10 @@ const LogViewer: React.FC<LogViewerProps> = ({
       </div>
 
       {/* Footer */}
-      <div className='p-1 border-t border-[#00ff41] bg-black text-xs text-[#00ff41] opacity-70'>
+      <div
+        className='p-1 border-t border-[#00ff41] bg-black text-xs text-[#00ff41] opacity-70'
+        style={{ backgroundColor: '#000000' }}
+      >
         <div className='flex justify-between items-center'>
           <span>Last: {new Date().toLocaleTimeString()}</span>
           <div className='flex gap-1'>
