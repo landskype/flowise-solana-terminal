@@ -20,9 +20,14 @@ import {
   logError,
   logAgentSelection,
 } from '../utils/logger';
+import { checkFlowiseSSESupport, testSSEConnection } from '../utils/flowiseApi';
+import {
+  initializeFlowiseClient,
+  sendPredictionWithSDK,
+  deployAgentWithSDK,
+} from '../utils/flowiseSdk';
 
 const AUTOSCROLL_THRESHOLD = 40; // px from bottom to trigger auto-scroll
-const TYPING_INTERVAL = 30; // ms per character for typing effect
 const ERROR_MESSAGE =
   'Sorry, something went wrong while processing your message.';
 
@@ -52,9 +57,6 @@ const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [apiEndpoint, setApiEndpoint] = useState(
-    '/api/v1/prediction/1323ab8f-7677-4623-b327-fabb67019498'
-  );
   const [selectedAgentId, setSelectedAgentId] = useState<string>(
     '1323ab8f-7677-4623-b327-fabb67019498'
   );
@@ -65,20 +67,66 @@ const Chat: React.FC = () => {
   );
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isLogVisible, setIsLogVisible] = useState(false);
+  const [sseSupported, setSseSupported] = useState(false);
+  const [useSSE, setUseSSE] = useState(true); // Enable SSE by default for streaming
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevMessagesLength = useRef(messages.length);
 
-  // Initialize logging system
+  // Initialize logging system and check SSE support
   useEffect(() => {
     setLogCallback((logEntry) => {
       setLogs((prev) => [...prev, logEntry]);
     });
 
     logInfo('Chat application started');
-  }, []);
+
+    // Initialize Flowise SDK
+    const initSDK = async () => {
+      try {
+        const initialized = initializeFlowiseClient(
+          'http://localhost:3000',
+          apiKey
+        );
+        if (initialized) {
+          logInfo('Flowise SDK initialized successfully');
+        }
+      } catch (error) {
+        logError('Failed to initialize Flowise SDK', { error });
+      }
+    };
+
+    initSDK();
+
+    // Check if Flowise supports SSE
+    const checkSSE = async () => {
+      try {
+        const supported = await checkFlowiseSSESupport(
+          'http://localhost:3000',
+          apiKey
+        );
+        setSseSupported(supported);
+        logInfo(`SSE support: ${supported ? 'Available' : 'Not available'}`);
+
+        // Test SSE connectivity if supported
+        if (supported) {
+          const testResult = await testSSEConnection(
+            'http://localhost:3000',
+            selectedAgentId,
+            apiKey
+          );
+          logInfo(`SSE connectivity test: ${testResult ? 'Passed' : 'Failed'}`);
+        }
+      } catch (error) {
+        logError('Failed to check SSE support', { error });
+        setSseSupported(false);
+      }
+    };
+
+    checkSSE();
+  }, [apiKey]);
 
   /**
    * Appends a message and clears any previous typing effect.
@@ -121,6 +169,34 @@ const Chat: React.FC = () => {
    */
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
+
+    // Check if agent is deployed and auto-deploy if needed
+    if (selectedAgent && !selectedAgent.deployed) {
+      logInfo('Agent not deployed, attempting auto-deployment', {
+        agentId: selectedAgent.id,
+      });
+
+      const success = await deployAgentWithSDK(
+        selectedAgent.id,
+        'http://localhost:3000',
+        apiKey
+      );
+
+      if (success) {
+        setSelectedAgent((prev) => (prev ? { ...prev, deployed: true } : null));
+        logSuccess('Agent auto-deployed successfully');
+      } else {
+        const warningMessage: Message = {
+          id: uniqueId(),
+          text: '⚠️ Warning: Failed to auto-deploy agent. Messages may not be processed correctly.',
+          isUser: false,
+          timestamp: new Date(),
+        };
+        appendMessageClearingTyping(warningMessage);
+        return;
+      }
+    }
+
     setIsLoading(true);
     const userMessage: Message = {
       id: uniqueId(),
@@ -130,75 +206,81 @@ const Chat: React.FC = () => {
     };
     appendMessageClearingTyping(userMessage);
     setInputValue('');
+
+    const botMessage: Message = {
+      id: uniqueId(),
+      text: '',
+      isUser: false,
+      timestamp: new Date(),
+      isTyping: false, // No typing effect
+    };
+    appendMessageClearingTyping(botMessage);
+
     try {
-      const response = await query({ question: inputValue });
-      const botMessage: Message = {
-        id: uniqueId(),
-        text: '',
-        isUser: false,
-        timestamp: new Date(),
-        isTyping: true,
-      };
-      appendMessageClearingTyping(botMessage);
-      const fullText = response.text || response.response || ERROR_MESSAGE;
-      typeMessage(botMessage.id, fullText);
+      if (useSSE && sseSupported) {
+        // Use SDK with streaming
+        try {
+          await queryWithSDKStreaming({ question: inputValue }, botMessage.id);
+        } catch (sdkError) {
+          logError('SDK streaming failed, falling back to regular API', {
+            sdkError,
+          });
+          // Fallback to regular API
+          const response = await query({ question: inputValue });
+          const fullText = response.text || response.response || ERROR_MESSAGE;
+          // Update message directly without typing effect
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === botMessage.id
+                ? { ...msg, text: fullText, isTyping: false }
+                : msg
+            )
+          );
+        }
+      } else {
+        // Use SDK without streaming
+        try {
+          const response = await sendPredictionWithSDK(
+            selectedAgentId,
+            inputValue,
+            false // no streaming
+          );
+          const fullText = response.text || ERROR_MESSAGE;
+          // Update message directly without typing effect
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === botMessage.id
+                ? { ...msg, text: fullText, isTyping: false }
+                : msg
+            )
+          );
+        } catch (sdkError) {
+          logError('SDK failed, falling back to regular API', { sdkError });
+          // Fallback to regular API
+          const response = await query({ question: inputValue });
+          const fullText = response.text || response.response || ERROR_MESSAGE;
+          // Update message directly without typing effect
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === botMessage.id
+                ? { ...msg, text: fullText, isTyping: false }
+                : msg
+            )
+          );
+        }
+      }
     } catch (error) {
       console.error('Error:', error);
-      const errorMessage: Message = {
-        id: uniqueId(),
-        text: ERROR_MESSAGE,
-        isUser: false,
-        timestamp: new Date(),
-      };
-      appendMessageClearingTyping(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /**
-   * Animates the agent's message as a typing effect.
-   * Only updates the relevant message's isTyping state.
-   */
-  const typeMessage = (messageId: string, fullText: string) => {
-    let currentIndex = 0;
-    const typeInterval = setInterval(() => {
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === messageId
-            ? {
-                ...msg,
-                text: fullText.slice(0, currentIndex),
-                isTyping: currentIndex < fullText.length,
-              }
+          msg.id === botMessage.id
+            ? { ...msg, text: ERROR_MESSAGE, isTyping: false }
             : msg
         )
       );
-      if (currentIndex++ >= fullText.length) {
-        clearInterval(typeInterval);
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === messageId ? { ...msg, isTyping: false } : msg
-          )
-        );
-      }
-    }, TYPING_INTERVAL);
-  };
-
-  /**
-   * Skips the typing effect for a message.
-   */
-  const skipTyping = (messageId: string) => {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === messageId
-          ? {
-              ...msg,
-              isTyping: false,
-            }
-          : msg
-      )
-    );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   /**
@@ -211,9 +293,141 @@ const Chat: React.FC = () => {
   ) => {
     setSelectedAgentId(agentId);
     setSelectedAgent(agentData || null);
-    setApiEndpoint(`/api/v1/prediction/${agentId}`);
     setIsConnected(true);
     logAgentSelection(agentId, agentName);
+  };
+
+  /**
+   * Deploys the selected agent
+   */
+  const handleDeployAgent = async () => {
+    if (!selectedAgent) return;
+
+    logInfo('Attempting to deploy agent', { agentId: selectedAgent.id });
+
+    const success = await deployAgentWithSDK(
+      selectedAgent.id,
+      'http://localhost:3000',
+      apiKey
+    );
+
+    if (success) {
+      // Update the agent's deployment status
+      setSelectedAgent((prev) => (prev ? { ...prev, deployed: true } : null));
+      logSuccess('Agent deployed successfully');
+
+      // Show success message
+      const successMessage: Message = {
+        id: uniqueId(),
+        text: 'Agent deployed successfully! You can now send messages. (Using SDK - working)',
+        isUser: false,
+        timestamp: new Date(),
+      };
+      appendMessageClearingTyping(successMessage);
+    } else {
+      logError('Failed to deploy agent');
+
+      // Show error message
+      const errorMessage: Message = {
+        id: uniqueId(),
+        text: 'nfFailed to deploy agent. Please try again or deploy manually in Flowise.',
+        isUser: false,
+        timestamp: new Date(),
+      };
+      appendMessageClearingTyping(errorMessage);
+    }
+  };
+
+  /**
+   * Sends a message using SDK with streaming
+   */
+  const queryWithSDKStreaming = async (
+    data: { question: string },
+    messageId: string
+  ) => {
+    let fullResponse = '';
+
+    try {
+      const completion = await sendPredictionWithSDK(
+        selectedAgentId,
+        data.question,
+        true // streaming
+      );
+
+      // Type assertion for async generator
+      const stream = completion as AsyncGenerator<string, void, unknown>;
+
+      for await (const chunk of stream) {
+        // Handle different chunk formats
+        let textChunk = '';
+        if (typeof chunk === 'string') {
+          textChunk = chunk;
+        } else if (chunk && typeof chunk === 'object') {
+          // Extract text from object
+          const obj = chunk as Record<string, unknown>;
+          if ('text' in obj) {
+            textChunk = String(obj.text);
+          } else if ('response' in obj) {
+            textChunk = String(obj.response);
+          } else if ('message' in obj) {
+            textChunk = String(obj.message);
+          } else {
+            // Try to stringify the object
+            textChunk = JSON.stringify(chunk);
+          }
+        } else {
+          textChunk = String(chunk);
+        }
+
+        // Filter out non-text events from Flowise
+        if (
+          textChunk.includes('"event":"token"') ||
+          textChunk.includes('"event":"agentFlowEvent"') ||
+          textChunk.includes('"event":"nextAgentFlow"') ||
+          textChunk.includes('"event":"agentFlowExecutedData"') ||
+          textChunk.includes('"event":"calledTools"') ||
+          textChunk.includes('"event":"usageMetadata"') ||
+          textChunk.includes('"event":"metadata"') ||
+          textChunk.includes('"event":"end"')
+        ) {
+          // Try to extract text from token events
+          try {
+            const parsed = JSON.parse(textChunk);
+            if (parsed.event === 'token' && parsed.data) {
+              textChunk = String(parsed.data);
+            } else {
+              // Skip non-token events
+              textChunk = '';
+            }
+          } catch {
+            // If it's not valid JSON, skip it
+            textChunk = '';
+          }
+        }
+
+        fullResponse += textChunk;
+        // Update the message in real-time without typing effect
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, text: fullResponse, isTyping: false }
+              : msg
+          )
+        );
+      }
+
+      // Mark as complete
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, isTyping: false } : msg
+        )
+      );
+
+      return { text: fullResponse };
+    } catch (error) {
+      logError('Failed to send message via SDK streaming', { error });
+      throw error;
+    }
   };
 
   /**
@@ -221,6 +435,7 @@ const Chat: React.FC = () => {
    */
   const query = async (data: { question: string }) => {
     const startTime = Date.now();
+    const endpoint = `http://localhost:3000/api/v1/prediction/${selectedAgentId}`;
 
     try {
       const headers: Record<string, string> = {
@@ -231,7 +446,7 @@ const Chat: React.FC = () => {
         headers['Authorization'] = `Bearer ${apiKey}`;
       }
 
-      const response = await fetch(apiEndpoint, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers,
         body: JSON.stringify(data),
@@ -283,20 +498,30 @@ const Chat: React.FC = () => {
         {/* Agent Info */}
         <AgentInfo agent={selectedAgent} isConnected={isConnected} />
 
+        {/* Deployment Warning */}
+        {selectedAgent && !selectedAgent.deployed && (
+          <div className='w-full bg-yellow-900 border-b border-yellow-400 p-2'>
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-2'>
+                <span className='text-yellow-400'>⚠️</span>
+                <span className='text-xs text-yellow-400'>
+                  Agent "{selectedAgent.name}" is not deployed. Please deploy
+                  the agent in Flowise before sending messages.
+                </span>
+              </div>
+              <button
+                onClick={handleDeployAgent}
+                className='px-2 py-1 text-xs bg-yellow-600 text-yellow-100 border border-yellow-400 hover:bg-yellow-700'
+                title='Deploy agent via API'
+              >
+                Deploy
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* API Configuration */}
         <div className='w-full bg-black border-b border-[#00ff41] p-2 flex items-center gap-2'>
-          <label htmlFor='api-endpoint' className='text-xs text-[#00ff41] mr-2'>
-            API Endpoint:
-          </label>
-          <input
-            id='api-endpoint'
-            type='text'
-            value={apiEndpoint}
-            onChange={(e) => setApiEndpoint(e.target.value)}
-            className='flex-1 bg-black text-[#00ff41] border border-[#00ff41] px-2 py-1 text-xs font-mono always-focus'
-            style={{ minWidth: 200 }}
-            autoComplete='off'
-          />
           <label htmlFor='chat-api-key' className='text-xs text-[#00ff41] mr-2'>
             API Key:
           </label>
@@ -309,6 +534,31 @@ const Chat: React.FC = () => {
             placeholder='Enter API key'
             autoComplete='off'
           />
+          <div className='flex items-center gap-2'>
+            <label className='text-xs text-[#00ff41]'>SSE:</label>
+            <input
+              type='checkbox'
+              checked={useSSE && sseSupported}
+              onChange={(e) => setUseSSE(e.target.checked)}
+              disabled={!sseSupported}
+              className='w-4 h-4 text-[#00ff41] bg-black border border-[#00ff41]'
+              title={
+                sseSupported
+                  ? 'Enable streaming responses (experimental)'
+                  : 'SSE not supported'
+              }
+            />
+            {!sseSupported && (
+              <span className='text-xs text-yellow-400'>
+                (Using regular API - working)
+              </span>
+            )}
+            {sseSupported && (
+              <span className='text-xs text-green-400'>
+                (Streaming enabled)
+              </span>
+            )}
+          </div>
         </div>
         <main
           role='main'
@@ -326,7 +576,6 @@ const Chat: React.FC = () => {
             inputValue={inputValue}
             setInputValue={setInputValue}
             handleSend={handleSendMessage}
-            skipTyping={skipTyping}
           />
           <input
             ref={inputRef}

@@ -31,19 +31,16 @@ interface ChatMessagesProps {
   inputValue: string;
   setInputValue: (val: string) => void;
   handleSend: () => void;
-  skipTyping: (messageId: string) => void;
 }
 
 interface ChatMessageItemProps {
   message: Message;
   isLastTyping: boolean;
-  skipTyping: (id: string) => void;
 }
 
 const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   message,
   isLastTyping,
-  skipTyping,
 }) => (
   <div
     className='w-full flex items-baseline message px-2'
@@ -55,7 +52,6 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
       lineHeight: '2.2em',
       marginBottom: '0',
     }}
-    onDoubleClick={() => message.isTyping && skipTyping(message.id)}
     tabIndex={0}
     aria-label={message.isUser ? 'User message' : 'Agent message'}
     role='listitem'
@@ -83,7 +79,6 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   isLoading,
   messagesEndRef,
   inputValue,
-  skipTyping,
 }) => (
   <div
     className='flex-1 min-h-0 w-full h-full overflow-y-auto overflow-x-hidden px-0 py-2'
@@ -102,7 +97,6 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
             message.isTyping === true &&
             idx === messages.length - 1
         )}
-        skipTyping={skipTyping}
       />
     ))}
     {isLoading && (

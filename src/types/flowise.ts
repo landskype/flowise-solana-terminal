@@ -22,6 +22,7 @@ export interface FlowisePredictionRequest {
   question: string;
   overrideConfig?: any;
   socketIOClientId?: string;
+  sessionId?: string;
 }
 
 export interface FlowisePredictionResponse {
@@ -31,4 +32,5 @@ export interface FlowisePredictionResponse {
   sourceDocuments?: any[];
   usedTools?: any[];
   chatId?: string;
+  sessionId?: string;
 }
