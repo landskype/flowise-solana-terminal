@@ -1,1 +1,1 @@
-// Shared API utilities 
+// Shared API utilities

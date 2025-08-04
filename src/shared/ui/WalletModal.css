@@ -1,0 +1,111 @@
+/*
+ * WalletModal.css
+ * Custom styles for Solana wallet modal to match terminal theme
+ */
+
+/* Override default wallet modal styles */
+.wallet-adapter-modal {
+  background-color: #000 !important;
+  border: 2px solid #00ff41 !important;
+  color: #00ff41 !important;
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.3) !important;
+}
+
+.wallet-adapter-modal-wrapper {
+  background-color: #000 !important;
+  border: 2px solid #00ff41 !important;
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.3) !important;
+}
+
+.wallet-adapter-modal-title {
+  color: #00ff41 !important;
+  font-family: 'Fira Mono', Consolas, monospace !important;
+}
+
+.wallet-adapter-modal-button-close {
+  background-color: transparent !important;
+  border: 2px solid #00ff41 !important;
+  color: #00ff41 !important;
+}
+
+.wallet-adapter-modal-button-close:hover {
+  background-color: #00ff41 !important;
+  color: #000 !important;
+}
+
+.wallet-adapter-modal-list {
+  background-color: #000 !important;
+  border: 2px solid #00ff41 !important;
+}
+
+.wallet-adapter-modal-list-item {
+  background-color: transparent !important;
+  border-bottom: 1px solid #00ff41 !important;
+  color: #00ff41 !important;
+}
+
+.wallet-adapter-modal-list-item:hover {
+  background-color: #00ff41 !important;
+  color: #000 !important;
+}
+
+.wallet-adapter-modal-list-item:last-child {
+  border-bottom: none !important;
+}
+
+.wallet-adapter-modal-list-item-text {
+  color: #00ff41 !important;
+  font-family: 'Fira Mono', Consolas, monospace !important;
+}
+
+.wallet-adapter-modal-list-item-text:hover {
+  color: #000 !important;
+}
+
+.wallet-adapter-modal-list-item-icon {
+  filter: brightness(0) saturate(100%) invert(100%) sepia(100%) saturate(10000%)
+    hue-rotate(90deg) !important;
+}
+
+.wallet-adapter-modal-list-item:hover .wallet-adapter-modal-list-item-icon {
+  filter: brightness(0) saturate(100%) invert(0%) sepia(0%) saturate(0%)
+    hue-rotate(0deg) !important;
+}
+
+.wallet-adapter-modal-list-item-end-icon {
+  color: #00ff41 !important;
+}
+
+.wallet-adapter-modal-list-item:hover .wallet-adapter-modal-list-item-end-icon {
+  color: #000 !important;
+}
+
+.wallet-adapter-modal-button {
+  background-color: transparent !important;
+  border: 2px solid #00ff41 !important;
+  color: #00ff41 !important;
+  font-family: 'Fira Mono', Consolas, monospace !important;
+}
+
+.wallet-adapter-modal-button:hover {
+  background-color: #00ff41 !important;
+  color: #000 !important;
+}
+
+/* Override backdrop */
+.wallet-adapter-modal-overlay {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Additional terminal-style overrides */
+.wallet-adapter-modal * {
+  font-family: 'Fira Mono', Consolas, monospace !important;
+}
+
+.wallet-adapter-modal-list-item-not-installed {
+  color: #666 !important;
+}
+
+.wallet-adapter-modal-list-item-not-installed:hover {
+  color: #000 !important;
+}

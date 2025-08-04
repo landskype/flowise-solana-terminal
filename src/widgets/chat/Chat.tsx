@@ -21,7 +21,10 @@ import {
   logError,
   logAgentSelection,
 } from '@/shared/lib/logger';
-import { checkFlowiseSSESupport, testSSEConnection } from '@/shared/lib/flowiseApi';
+import {
+  checkFlowiseSSESupport,
+  testSSEConnection,
+} from '@/shared/lib/flowiseApi';
 import {
   initializeFlowiseClient,
   sendPredictionWithSDK,

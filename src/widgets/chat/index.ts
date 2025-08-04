@@ -1,4 +1,5 @@
 // Chat widget exports
-export * from './Chat';
-export * from './ChatMessages';
-export * from './ChatInput'; 
+export { default as Chat } from './Chat';
+export { default as ChatInput } from './ChatInput';
+export { default as ChatMessages } from './ChatMessages';
+export { WalletChat } from './WalletChat';

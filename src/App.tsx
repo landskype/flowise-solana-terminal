@@ -1,10 +1,10 @@
 import './App.css';
-import Chat from '@/widgets/chat/Chat';
+import { WalletChat } from '@/widgets/chat/WalletChat';
 
 function App() {
   return (
     <div className='App'>
-      <Chat />
+      <WalletChat />
     </div>
   );
 }
