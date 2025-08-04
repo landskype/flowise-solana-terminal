@@ -24,25 +24,6 @@ export const WalletChat: FC<WalletChatProps> = ({ className = '' }) => {
 
   return (
     <div className={`flex flex-col h-full ${className}`}>
-      {/* Original ChatHeader */}
-      <ChatHeader />
-
-      {/* Wallet status bar when connected */}
-      {isConnected && user && (
-        <div className='flex items-center justify-between p-2 bg-gray-50 border-b'>
-          <div className='flex items-center space-x-2'>
-            <span className='text-sm text-gray-600'>Wallet:</span>
-            <span className='text-sm font-mono text-gray-800'>
-              {user.address.slice(0, 8)}...{user.address.slice(-8)}
-            </span>
-          </div>
-          <div className='flex items-center space-x-2'>
-            <WalletStatus />
-            <WalletDisconnectButton />
-          </div>
-        </div>
-      )}
-
       {/* Chat with wallet guard */}
       <WalletGuard
         fallback={

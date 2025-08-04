@@ -19,8 +19,8 @@ import {
 } from './logger';
 
 export interface FlowiseSSEOptions {
-  onMessage?: (data: any) => void;
-  onError?: (error: any) => void;
+  onMessage?: (data: unknown) => void;
+  onError?: (error: unknown) => void;
   onComplete?: (finalResponse: FlowisePredictionResponse) => void;
   onStart?: () => void;
 }
@@ -60,7 +60,7 @@ export const fetchFlowiseAgents = async (
     }
 
     const data = await response.json();
-    const agents = data.map((flow: any) => ({
+    const agents = data.map((flow: Record<string, unknown>) => ({
       id: flow.id,
       name: flow.name || `Agent ${flow.id}`,
       description: flow.description || 'No description available',
@@ -317,24 +317,22 @@ export const testSSEConnection = async (
   apiKey?: string
 ): Promise<boolean> => {
   try {
+    logInfo('Testing SSE connection', { baseUrl, agentId });
+
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       Accept: 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-      'X-Requested-With': 'XMLHttpRequest', // Prevent redirect to HTML
     };
 
     if (apiKey) {
       headers['Authorization'] = `Bearer ${apiKey}`;
     }
 
+    // Use HEAD request to check if SSE endpoint exists without creating a chat
     const response = await fetch(
       `${baseUrl}/api/v1/prediction/${agentId}/stream`,
       {
-        method: 'POST',
+        method: 'HEAD',
         headers,
-        body: JSON.stringify({ question: 'test' }),
       }
     );
 
@@ -343,40 +341,14 @@ export const testSSEConnection = async (
       return false;
     }
 
-    // Check if response is HTML (redirected to login page)
+    // Check if response supports SSE
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('text/html')) {
-      logError('SSE test failed - received HTML instead of SSE data');
+      logError('SSE test failed - endpoint returns HTML instead of SSE');
       return false;
     }
 
-    // Try to read a small amount of data to verify streaming works
-    if (response.body) {
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-
-      try {
-        const { done, value } = await reader.read();
-        if (!done && value) {
-          const chunk = decoder.decode(value, { stream: true });
-
-          // Check if we received HTML instead of SSE data
-          if (chunk.includes('<!DOCTYPE html>') || chunk.includes('<html')) {
-            logError('SSE test failed - received HTML instead of SSE data');
-            reader.cancel();
-            return false;
-          }
-
-          logInfo('SSE test successful - received data:', chunk);
-          reader.cancel(); // Close the stream
-          return true;
-        }
-      } catch (error) {
-        logError('SSE test read error', { error });
-        return false;
-      }
-    }
-
+    logInfo('SSE endpoint test successful');
     return true;
   } catch (error) {
     logError('SSE test failed', { error });

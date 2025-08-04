@@ -364,23 +364,21 @@ const Chat: React.FC = () => {
     agentId: string
   ): Promise<boolean> => {
     try {
-      // Попробуем сделать тестовый запрос к агенту
+      // Use HEAD request to check if agent endpoint exists without creating a chat
       const testResponse = await fetch(
         `http://localhost:3000/api/v1/prediction/${agentId}`,
         {
-          method: 'POST',
+          method: 'HEAD',
           headers: {
-            'Content-Type': 'application/json',
             Authorization: `Bearer ${apiKey}`,
           },
-          body: JSON.stringify({ question: 'test' }),
         }
       );
 
-      // Если получаем ответ (даже с ошибкой), значит агент деплоен
+      // If we get a response (even with error), the agent is deployed
       return testResponse.status !== 404;
     } catch (error) {
-      // Если получаем ошибку сети, считаем что агент не деплоен
+      // If we get a network error, consider agent not deployed
       logError('Failed to check agent deployment status', { error, agentId });
       return false;
     }
