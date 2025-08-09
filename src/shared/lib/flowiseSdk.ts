@@ -93,7 +93,8 @@ export const fetchAgentsWithSDK = async (
 export const sendPredictionWithSDK = async (
   chatflowId: string,
   question: string,
-  streaming: boolean = true
+  streaming: boolean = true,
+  chatId?: string
 ) => {
   if (!flowiseClient) {
     throw new Error('Flowise client not initialized');
@@ -108,6 +109,7 @@ export const sendPredictionWithSDK = async (
       chatflowId,
       question,
       streaming,
+      ...(chatId ? { chatId, sessionId: chatId } : {}),
     });
 
     logInfo('SDK createPrediction successful', { streaming });

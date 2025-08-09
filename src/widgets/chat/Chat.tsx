@@ -30,6 +30,13 @@ import {
   sendPredictionWithSDK,
   deployAgentWithSDK,
 } from '@/shared/lib/flowiseSdk';
+import { useWalletContext } from '@/shared/lib/WalletContext';
+import {
+  deleteFlowiseChat,
+  fetchFlowiseChatHistory,
+  listFlowiseChatSessions,
+} from '@/shared/lib/flowiseApi';
+import type { FlowiseChatSessionSummary } from '@/shared/lib/flowiseApi';
 
 const AUTOSCROLL_THRESHOLD = 40; // px from bottom to trigger auto-scroll
 const ERROR_MESSAGE =
@@ -84,6 +91,25 @@ const Chat: React.FC = () => {
   const [autoScroll, setAutoScroll] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevMessagesLength = useRef(messages.length);
+  const { user } = useWalletContext();
+  const [chatId, setChatId] = useState<string | undefined>(undefined);
+  const [chatMessagesLoaded, setChatMessagesLoaded] = useState(false);
+  const [chatIdInput, setChatIdInput] = useState('');
+  const [sessions, setSessions] = useState<FlowiseChatSessionSummary[]>([]);
+  const [showSessions, setShowSessions] = useState(false);
+  const [flowiseUrl, setFlowiseUrl] = useState('http://localhost:3000');
+  const [sessionsRefreshKey, setSessionsRefreshKey] = useState(0);
+
+  // React to wallet changes; clear chat state but do not force chatId
+  useEffect(() => {
+    const walletAddress = user?.address;
+    if (!walletAddress) {
+      setChatId(undefined);
+      setChatMessagesLoaded(false);
+      return;
+    }
+    setChatMessagesLoaded(false);
+  }, [user?.address]);
 
   // Initialize logging system and check SSE support
   useEffect(() => {
@@ -96,10 +122,7 @@ const Chat: React.FC = () => {
     // Initialize Flowise SDK
     const initSDK = async () => {
       try {
-        const initialized = initializeFlowiseClient(
-          'http://localhost:3000',
-          apiKey
-        );
+        const initialized = initializeFlowiseClient(flowiseUrl, apiKey);
         if (initialized) {
           logInfo('Flowise SDK initialized successfully');
         }
@@ -113,17 +136,14 @@ const Chat: React.FC = () => {
     // Check if Flowise supports SSE
     const checkSSE = async () => {
       try {
-        const supported = await checkFlowiseSSESupport(
-          'http://localhost:3000',
-          apiKey
-        );
+        const supported = await checkFlowiseSSESupport(flowiseUrl, apiKey);
         setSseSupported(supported);
         logInfo(`SSE support: ${supported ? 'Available' : 'Not available'}`);
 
         // Test SSE connectivity if supported
         if (supported) {
           const testResult = await testSSEConnection(
-            'http://localhost:3000',
+            flowiseUrl,
             selectedAgentId,
             apiKey
           );
@@ -136,7 +156,7 @@ const Chat: React.FC = () => {
     };
 
     checkSSE();
-  }, [apiKey]);
+  }, [apiKey, flowiseUrl, selectedAgentId]);
 
   // Устанавливаем агента по умолчанию при инициализации
   useEffect(() => {
@@ -260,7 +280,7 @@ const Chat: React.FC = () => {
             sdkError,
           });
           // Fallback to regular API
-          const response = await query({ question: inputValue });
+          const response = await query({ question: inputValue, chatId });
           const fullText = response.text || response.response || ERROR_MESSAGE;
 
           // Create contentBlocks for fallback response
@@ -287,7 +307,8 @@ const Chat: React.FC = () => {
           const response = await sendPredictionWithSDK(
             selectedAgentId,
             inputValue,
-            false // no streaming
+            false, // no streaming
+            chatId
           );
           const fullText = response.text || ERROR_MESSAGE;
 
@@ -311,7 +332,7 @@ const Chat: React.FC = () => {
         } catch (sdkError) {
           logError('SDK failed, falling back to regular API', { sdkError });
           // Fallback to regular API
-          const response = await query({ question: inputValue });
+          const response = await query({ question: inputValue, chatId });
           const fullText = response.text || response.response || ERROR_MESSAGE;
 
           // Create contentBlocks for API response
@@ -366,7 +387,7 @@ const Chat: React.FC = () => {
     try {
       // Use HEAD request to check if agent endpoint exists without creating a chat
       const testResponse = await fetch(
-        `http://localhost:3000/api/v1/prediction/${agentId}`,
+        `${flowiseUrl}/api/v1/prediction/${agentId}`,
         {
           method: 'HEAD',
           headers: {
@@ -396,6 +417,7 @@ const Chat: React.FC = () => {
     setSelectedAgent(agentData || null);
     setIsConnected(true);
     logAgentSelection(agentId, agentName);
+    setChatMessagesLoaded(false);
 
     // Если у нас есть данные агента, обновляем информацию
     if (agentData) {
@@ -419,6 +441,109 @@ const Chat: React.FC = () => {
       }
     }
   };
+  // Load chat history when agent and chatId are available and not yet loaded
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!chatId || !selectedAgentId || chatMessagesLoaded === true) return;
+      try {
+        const history = await fetchFlowiseChatHistory(
+          flowiseUrl,
+          selectedAgentId,
+          chatId,
+          apiKey
+        );
+        if (history && history.length > 0) {
+          const parsed = history.map((h, idx) => {
+            const isUser = (h.role || '').toLowerCase() === 'user';
+            const content = (h.text || h.message || h.content || '') as string;
+            return {
+              id: uniqueId() + '-' + idx,
+              text: content,
+              isUser,
+              timestamp: new Date(h.createdAt || Date.now()),
+            } as Message;
+          });
+          setMessages(parsed);
+        } else {
+          setMessages([]);
+        }
+      } catch (e) {
+        logError('Failed to load chat history', e);
+      } finally {
+        setChatMessagesLoaded(true);
+      }
+    };
+    loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId, selectedAgentId, apiKey]);
+
+  // Load available sessions for current agent (filtered by wallet address)
+  useEffect(() => {
+    const loadSessions = async () => {
+      if (!selectedAgentId) return;
+      const list = await listFlowiseChatSessions(
+        flowiseUrl,
+        selectedAgentId,
+        apiKey
+      );
+      const filtered = user?.address
+        ? list.filter((s) => s.chatId.startsWith(user.address))
+        : list;
+      setSessions(filtered);
+      // Auto-select the newest chat if none selected yet
+      if (!chatId && filtered.length > 0) {
+        setChatId(filtered[0].chatId);
+        setChatMessagesLoaded(false);
+      }
+    };
+    loadSessions();
+  }, [
+    selectedAgentId,
+    apiKey,
+    showSessions,
+    user?.address,
+    flowiseUrl,
+    sessionsRefreshKey,
+    chatId,
+  ]);
+
+  const handleNewChat = async () => {
+    if (!user?.address) return;
+    // Start a fresh server-side session by using a new sessionId distinct from base wallet id
+    const newId = `${user.address}:${Date.now().toString(36)}`;
+    setChatId(newId);
+    setMessages([]);
+    setChatMessagesLoaded(true); // empty chat
+    logInfo('New chat created', { chatId: newId, agentId: selectedAgentId });
+  };
+
+  const handleDeleteChat = async () => {
+    if (!chatId || !selectedAgentId) return;
+    const ok = await deleteFlowiseChat(
+      flowiseUrl,
+      selectedAgentId,
+      chatId,
+      apiKey
+    );
+    if (ok) {
+      logSuccess('Chat deleted', { chatId });
+      setMessages([]);
+      setChatMessagesLoaded(true);
+    } else {
+      logError('Failed to delete chat', { chatId });
+    }
+  };
+
+  const handleLoadChat = () => {
+    if (!chatIdInput.trim()) return;
+    setChatId(chatIdInput.trim());
+    setChatMessagesLoaded(false);
+    setMessages([]);
+    logInfo('Load chat requested', {
+      chatId: chatIdInput.trim(),
+      agentId: selectedAgentId,
+    });
+  };
 
   /**
    * Deploys the selected agent
@@ -430,7 +555,7 @@ const Chat: React.FC = () => {
 
     const success = await deployAgentWithSDK(
       selectedAgent.id,
-      'http://localhost:3000',
+      flowiseUrl,
       apiKey
     );
 
@@ -480,7 +605,8 @@ const Chat: React.FC = () => {
       const completion = await sendPredictionWithSDK(
         selectedAgentId,
         data.question,
-        true // streaming
+        true, // streaming
+        chatId
       );
 
       // Type assertion for async generator
@@ -665,9 +791,9 @@ const Chat: React.FC = () => {
   /**
    * Sends a user message to the backend and handles the response.
    */
-  const query = async (data: { question: string }) => {
+  const query = async (data: { question: string; chatId?: string }) => {
     const startTime = Date.now();
-    const endpoint = `http://localhost:3000/api/v1/prediction/${selectedAgentId}`;
+    const endpoint = `${flowiseUrl}/api/v1/prediction/${selectedAgentId}`;
 
     try {
       const headers: Record<string, string> = {
@@ -681,7 +807,10 @@ const Chat: React.FC = () => {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers,
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          ...(data.chatId ? { sessionId: data.chatId } : {}),
+        }),
       });
 
       const duration = Date.now() - startTime;
@@ -694,6 +823,11 @@ const Chat: React.FC = () => {
       }
 
       const result = await response.json();
+
+      // If server returns a chatId, keep it for subsequent requests
+      if (result && result.chatId && result.chatId !== chatId) {
+        setChatId(String(result.chatId));
+      }
 
       // Выводим raw данные в консоль
       console.log('=== RAW API RESPONSE ===');
@@ -749,6 +883,7 @@ const Chat: React.FC = () => {
           useSSE={useSSE}
           setUseSSE={setUseSSE}
           sseSupported={sseSupported}
+          onFlowiseUrlChange={setFlowiseUrl}
         />
 
         {/* Agent Info */}
@@ -758,6 +893,132 @@ const Chat: React.FC = () => {
           selectedAgentId={selectedAgentId}
           onDeployAgent={handleDeployAgent}
         />
+
+        {/* Chat Controls (terminal style) */}
+        <div className='w-full bg-black border-b border-[#00ff41] p-2 flex items-center gap-2'>
+          <button
+            className='bg-black text-[#00ff41] border border-[#00ff41] px-3 py-1 text-xs font-mono hover:bg-[#00ff41] hover:text-black transition-colors'
+            onClick={handleNewChat}
+            title='Start a new chat session'
+          >
+            new_chat
+          </button>
+          <button
+            className='bg-black text-[#00ff41] border border-[#00ff41] px-3 py-1 text-xs font-mono hover:bg-[#00ff41] hover:text-black transition-colors'
+            onClick={handleDeleteChat}
+            disabled={!chatId}
+            title='Delete current chat session'
+          >
+            delete_chat
+          </button>
+          <button
+            className='bg-black text-[#00ff41] border border-[#00ff41] px-3 py-1 text-xs font-mono hover:bg-[#00ff41] hover:text-black transition-colors'
+            onClick={() => setShowSessions((v) => !v)}
+            title='Toggle sessions list'
+          >
+            list_chats
+          </button>
+          <button
+            className='bg-black text-[#00ff41] border border-[#00ff41] px-3 py-1 text-xs font-mono hover:bg-[#00ff41] hover:text-black transition-colors'
+            onClick={() => setSessionsRefreshKey((x) => x + 1)}
+            title='Refresh sessions'
+          >
+            refresh_chats
+          </button>
+          {/* Manual selector removed as requested */}
+          <input
+            type='text'
+            value={chatIdInput}
+            onChange={(e) => setChatIdInput(e.target.value)}
+            placeholder='enter chatId'
+            className='flex-1 bg-black text-[#00ff41] border border-[#00ff41] px-2 py-1 text-xs font-mono'
+            autoComplete='off'
+          />
+          <button
+            className='bg-black text-[#00ff41] border border-[#00ff41] px-3 py-1 text-xs font-mono hover:bg-[#00ff41] hover:text-black transition-colors'
+            onClick={handleLoadChat}
+            title='Load chat by id'
+          >
+            load_chat
+          </button>
+          <span className='text-xs text-[#00ff41] opacity-70 ml-auto flex items-center gap-2'>
+            <span>chatId: {chatId || '—'}</span>
+            <button
+              className='bg-black text-[#00ff41] border border-[#00ff41] px-2 py-0.5 text-xs font-mono hover:bg-[#00ff41] hover:text-black transition-colors'
+              onClick={async () => {
+                if (!chatId) return;
+                try {
+                  await navigator.clipboard.writeText(chatId);
+                  logSuccess('Chat ID copied to clipboard');
+                } catch (e) {
+                  logError('Failed to copy Chat ID', e);
+                }
+              }}
+              disabled={!chatId}
+              title='Copy chatId'
+            >
+              copy_id
+            </button>
+          </span>
+        </div>
+
+        {showSessions && (
+          <div className='w-full bg-black border-b border-[#00ff41] p-2'>
+            {sessions.length === 0 ? (
+              <div className='text-xs text-[#00ff41] opacity-70'>no chats</div>
+            ) : (
+              <div className='space-y-1'>
+                {sessions.map((s) => (
+                  <div
+                    key={s.chatId}
+                    className='flex items-center gap-2 text-xs'
+                  >
+                    <button
+                      className='bg-black text-[#00ff41] border border-[#00ff41] px-2 py-0.5 font-mono hover:bg-[#00ff41] hover:text-black transition-colors'
+                      onClick={() => {
+                        setChatId(s.chatId);
+                        setChatMessagesLoaded(false);
+                        setMessages([]);
+                      }}
+                      title='Open chat'
+                    >
+                      open
+                    </button>
+                    <button
+                      className='bg-black text-red-400 border border-red-400 px-2 py-0.5 font-mono hover:bg-red-400 hover:text-black transition-colors'
+                      onClick={async () => {
+                        const ok = await deleteFlowiseChat(
+                          'http://localhost:3000',
+                          selectedAgentId,
+                          s.chatId,
+                          apiKey
+                        );
+                        if (ok) {
+                          setSessions((prev) =>
+                            prev.filter((x) => x.chatId !== s.chatId)
+                          );
+                          if (chatId === s.chatId) {
+                            setMessages([]);
+                          }
+                        }
+                      }}
+                      title='Delete chat'
+                    >
+                      del
+                    </button>
+                    <span className='text-[#00ff41] break-all'>{s.chatId}</span>
+                    <span className='text-[#00ff41] opacity-60'>
+                      {s.lastAt ? new Date(s.lastAt).toLocaleString() : ''}
+                    </span>
+                    <span className='text-[#00ff41] opacity-60'>
+                      ({s.count})
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <main
           role='main'

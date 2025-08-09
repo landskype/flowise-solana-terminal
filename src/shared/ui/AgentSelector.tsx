@@ -26,6 +26,7 @@ interface AgentSelectorProps {
   useSSE: boolean;
   setUseSSE: (use: boolean) => void;
   sseSupported: boolean;
+  onFlowiseUrlChange?: (url: string) => void;
 }
 
 const AgentSelector: React.FC<AgentSelectorProps> = ({
@@ -36,6 +37,7 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
   useSSE,
   setUseSSE,
   sseSupported,
+  onFlowiseUrlChange,
 }) => {
   const [agents, setAgents] = useState<FlowiseAgent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,6 +71,7 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
   };
 
   useEffect(() => {
+    onFlowiseUrlChange?.(flowiseUrl);
     fetchAgents();
   }, [flowiseUrl, apiKey]);
 
@@ -96,7 +99,11 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
           id='flowise-url'
           type='text'
           value={flowiseUrl}
-          onChange={(e) => setFlowiseUrl(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value;
+            setFlowiseUrl(val);
+            onFlowiseUrlChange?.(val);
+          }}
           className='flex-1 bg-black text-[#00ff41] border border-[#00ff41] px-2 py-1 text-xs font-mono'
           placeholder='http://localhost:3000'
           autoComplete='off'
