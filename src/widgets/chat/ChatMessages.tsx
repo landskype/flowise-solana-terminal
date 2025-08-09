@@ -28,22 +28,15 @@ interface Message {
 
 interface ChatMessagesProps {
   messages: Message[];
-  isLoading: boolean;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   inputValue: string;
-  setInputValue: (val: string) => void;
-  handleSend: () => void;
 }
 
 interface ChatMessageItemProps {
   message: Message;
-  isLastTyping: boolean;
 }
 
-const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
-  message,
-  isLastTyping,
-}) => {
+const ChatMessageItem: React.FC<ChatMessageItemProps> = ({ message }) => {
   const { user } = useWalletContext();
   const walletPrompt = getWalletPrompt(user?.address);
 
@@ -79,9 +72,6 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                 )}
               </React.Fragment>
             ))}
-            {Boolean(isLastTyping) && (
-              <span className='typing-cursor animate-blink'>|</span>
-            )}
           </div>
           <span className='text-xs ml-2 opacity-70 min-w-[60px] text-right'>
             {message.timestamp.toLocaleTimeString()}
@@ -111,9 +101,6 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
           <ReactMarkdown components={markdownComponents}>
             {message.text}
           </ReactMarkdown>
-          {Boolean(isLastTyping) && (
-            <span className='typing-cursor animate-blink'>|</span>
-          )}
         </div>
         <span className='text-xs ml-2 opacity-70 min-w-[60px] text-right'>
           {message.timestamp.toLocaleTimeString()}
@@ -134,7 +121,6 @@ const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
 
 const ChatMessages: React.FC<ChatMessagesProps> = ({
   messages,
-  isLoading,
   messagesEndRef,
   inputValue,
 }) => {
@@ -149,53 +135,24 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
       aria-label='Chat messages'
       role='list'
     >
-      {messages.map((message, idx) => (
-        <ChatMessageItem
-          key={message.id}
-          message={message}
-          isLastTyping={Boolean(
-            isLoading &&
-              !message.isUser &&
-              message.isTyping === true &&
-              idx === messages.length - 1
-          )}
-        />
+      {messages.map((message) => (
+        <ChatMessageItem key={message.id} message={message} />
       ))}
-      {isLoading && (
-        <div
-          className='w-full flex items-baseline message px-2 min-h-[2.2em] leading-[2.2em] mb-0 font-terminal text-terminal-green bg-terminal-bg'
-          style={{ width: '100%', maxWidth: '100%' }}
-        >
-          <span className='text-xs mr-2 text-terminal-green'>
-            {TERMINAL_PROMPT_AGENT}
-          </span>
-          <span
-            className='flex-1 text-base whitespace-pre-wrap break-words text-terminal-green'
-            style={{ width: '100%', maxWidth: '100%' }}
-          >
-            <span className='typing-cursor animate-blink'>|</span>
-          </span>
-        </div>
-      )}
       <div ref={messagesEndRef} />
-      {/* Terminal input line */}
-      {!isLoading && (
-        <div
-          className='w-full flex items-baseline message px-2 min-h-[2.2em] leading-[2.2em] mb-0 font-terminal text-terminal-green bg-terminal-bg'
+      {/* Terminal input line (always visible, no animation) */}
+      <div
+        className='w-full flex items-baseline message px-2 min-h-[2.2em] leading-[2.2em] mb-0 font-terminal text-terminal-green bg-terminal-bg'
+        style={{ width: '100%', maxWidth: '100%' }}
+      >
+        <span className='text-xs mr-2 text-terminal-green'>{walletPrompt}</span>
+        <span
+          className='flex-1 text-base whitespace-pre-wrap break-words text-terminal-green'
           style={{ width: '100%', maxWidth: '100%' }}
         >
-          <span className='text-xs mr-2 text-terminal-green'>
-            {walletPrompt}
-          </span>
-          <span
-            className='flex-1 text-base whitespace-pre-wrap break-words text-terminal-green'
-            style={{ width: '100%', maxWidth: '100%' }}
-          >
-            {inputValue}
-            <span className='typing-cursor animate-blink'>|</span>
-          </span>
-        </div>
-      )}
+          {inputValue}
+          <span className='typing-cursor'>|</span>
+        </span>
+      </div>
     </div>
   );
 };

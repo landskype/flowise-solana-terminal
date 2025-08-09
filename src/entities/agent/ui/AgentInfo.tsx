@@ -1,10 +1,9 @@
 /*
  * AgentInfo.tsx
- * Component for displaying information about the selected agent
+ * Entity: display selected agent information
  */
 
 import React from 'react';
-import { TERMINAL_FONT, TERMINAL_GREEN } from '@/shared/config/theme';
 import type { FlowiseAgent } from '@/shared/types/flowise';
 
 interface AgentInfoProps {

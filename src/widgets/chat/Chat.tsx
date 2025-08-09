@@ -4,12 +4,12 @@
  * Handles message state, typing effect, auto-scroll, and input.
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import '@/shared/ui/Chat.css';
 import ChatHeader from '@/shared/ui/ChatHeader';
 import ChatMessages from './ChatMessages';
-import AgentSelector from '@/shared/ui/AgentSelector';
-import AgentInfo from '@/shared/ui/AgentInfo';
+import AgentSelector from '@/features/agent/select/ui/AgentSelector';
+import AgentInfo from '@/entities/agent/ui/AgentInfo';
 import LogViewer from '@/shared/ui/LogViewer';
 import type { FlowiseAgent } from '@/shared/types/flowise';
 import type { LogEntry } from '@/shared/ui/LogViewer';
@@ -37,6 +37,8 @@ import {
   listFlowiseChatSessions,
 } from '@/shared/lib/flowiseApi';
 import type { FlowiseChatSessionSummary } from '@/shared/lib/flowiseApi';
+import { SessionControls } from '@/features/chat/session/ui/SessionControls';
+import { SessionList } from '@/features/chat/session/ui/SessionList';
 
 const AUTOSCROLL_THRESHOLD = 40; // px from bottom to trigger auto-scroll
 const ERROR_MESSAGE =
@@ -99,6 +101,28 @@ const Chat: React.FC = () => {
   const [showSessions, setShowSessions] = useState(false);
   const [flowiseUrl, setFlowiseUrl] = useState('http://localhost:3000');
   const [sessionsRefreshKey, setSessionsRefreshKey] = useState(0);
+
+  // Check if an agent is deployed (HEAD request)
+  const checkAgentDeploymentStatus = useCallback(
+    async (agentId: string): Promise<boolean> => {
+      try {
+        const testResponse = await fetch(
+          `${flowiseUrl}/api/v1/prediction/${agentId}`,
+          {
+            method: 'HEAD',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+            },
+          }
+        );
+        return testResponse.status !== 404;
+      } catch (error) {
+        logError('Failed to check agent deployment status', { error, agentId });
+        return false;
+      }
+    },
+    [apiKey, flowiseUrl]
+  );
 
   // React to wallet changes; clear chat state but do not force chatId
   useEffect(() => {
@@ -184,7 +208,7 @@ const Chat: React.FC = () => {
         });
       });
     }
-  }, [selectedAgentId, selectedAgent]);
+  }, [selectedAgentId, selectedAgent, checkAgentDeploymentStatus]);
 
   // Автоматическая периодическая проверка статуса деплоя
   useEffect(() => {
@@ -207,7 +231,7 @@ const Chat: React.FC = () => {
     }, 30000); // Проверяем каждые 30 секунд
 
     return () => clearInterval(checkDeploymentInterval);
-  }, [selectedAgent, selectedAgentId]);
+  }, [selectedAgent, selectedAgentId, checkAgentDeploymentStatus]);
 
   /**
    * Appends a message and clears any previous typing effect.
@@ -375,33 +399,6 @@ const Chat: React.FC = () => {
       );
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  /**
-   * Checks if an agent is deployed by making a test request
-   */
-  const checkAgentDeploymentStatus = async (
-    agentId: string
-  ): Promise<boolean> => {
-    try {
-      // Use HEAD request to check if agent endpoint exists without creating a chat
-      const testResponse = await fetch(
-        `${flowiseUrl}/api/v1/prediction/${agentId}`,
-        {
-          method: 'HEAD',
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-          },
-        }
-      );
-
-      // If we get a response (even with error), the agent is deployed
-      return testResponse.status !== 404;
-    } catch (error) {
-      // If we get a network error, consider agent not deployed
-      logError('Failed to check agent deployment status', { error, agentId });
-      return false;
     }
   };
 
@@ -894,130 +891,50 @@ const Chat: React.FC = () => {
           onDeployAgent={handleDeployAgent}
         />
 
-        {/* Chat Controls (terminal style) */}
-        <div className='w-full bg-black border-b border-[#00ff41] p-2 flex items-center gap-2'>
-          <button
-            className='bg-black text-[#00ff41] border border-[#00ff41] px-3 py-1 text-xs font-mono hover:bg-[#00ff41] hover:text-black transition-colors'
-            onClick={handleNewChat}
-            title='Start a new chat session'
-          >
-            new_chat
-          </button>
-          <button
-            className='bg-black text-[#00ff41] border border-[#00ff41] px-3 py-1 text-xs font-mono hover:bg-[#00ff41] hover:text-black transition-colors'
-            onClick={handleDeleteChat}
-            disabled={!chatId}
-            title='Delete current chat session'
-          >
-            delete_chat
-          </button>
-          <button
-            className='bg-black text-[#00ff41] border border-[#00ff41] px-3 py-1 text-xs font-mono hover:bg-[#00ff41] hover:text-black transition-colors'
-            onClick={() => setShowSessions((v) => !v)}
-            title='Toggle sessions list'
-          >
-            list_chats
-          </button>
-          <button
-            className='bg-black text-[#00ff41] border border-[#00ff41] px-3 py-1 text-xs font-mono hover:bg-[#00ff41] hover:text-black transition-colors'
-            onClick={() => setSessionsRefreshKey((x) => x + 1)}
-            title='Refresh sessions'
-          >
-            refresh_chats
-          </button>
-          {/* Manual selector removed as requested */}
-          <input
-            type='text'
-            value={chatIdInput}
-            onChange={(e) => setChatIdInput(e.target.value)}
-            placeholder='enter chatId'
-            className='flex-1 bg-black text-[#00ff41] border border-[#00ff41] px-2 py-1 text-xs font-mono'
-            autoComplete='off'
-          />
-          <button
-            className='bg-black text-[#00ff41] border border-[#00ff41] px-3 py-1 text-xs font-mono hover:bg-[#00ff41] hover:text-black transition-colors'
-            onClick={handleLoadChat}
-            title='Load chat by id'
-          >
-            load_chat
-          </button>
-          <span className='text-xs text-[#00ff41] opacity-70 ml-auto flex items-center gap-2'>
-            <span>chatId: {chatId || '—'}</span>
-            <button
-              className='bg-black text-[#00ff41] border border-[#00ff41] px-2 py-0.5 text-xs font-mono hover:bg-[#00ff41] hover:text-black transition-colors'
-              onClick={async () => {
-                if (!chatId) return;
-                try {
-                  await navigator.clipboard.writeText(chatId);
-                  logSuccess('Chat ID copied to clipboard');
-                } catch (e) {
-                  logError('Failed to copy Chat ID', e);
-                }
-              }}
-              disabled={!chatId}
-              title='Copy chatId'
-            >
-              copy_id
-            </button>
-          </span>
-        </div>
+        {/* Chat Controls */}
+        <SessionControls
+          chatId={chatId}
+          onNew={handleNewChat}
+          onDelete={handleDeleteChat}
+          onToggleList={() => setShowSessions((v) => !v)}
+          onRefreshList={() => setSessionsRefreshKey((x) => x + 1)}
+          onCopyId={async () => {
+            if (!chatId) return;
+            try {
+              await navigator.clipboard.writeText(chatId);
+              logSuccess('Chat ID copied to clipboard');
+            } catch (e) {
+              logError('Failed to copy Chat ID', e);
+            }
+          }}
+          chatIdInput={chatIdInput}
+          setChatIdInput={setChatIdInput}
+          onLoadChat={handleLoadChat}
+        />
 
         {showSessions && (
-          <div className='w-full bg-black border-b border-[#00ff41] p-2'>
-            {sessions.length === 0 ? (
-              <div className='text-xs text-[#00ff41] opacity-70'>no chats</div>
-            ) : (
-              <div className='space-y-1'>
-                {sessions.map((s) => (
-                  <div
-                    key={s.chatId}
-                    className='flex items-center gap-2 text-xs'
-                  >
-                    <button
-                      className='bg-black text-[#00ff41] border border-[#00ff41] px-2 py-0.5 font-mono hover:bg-[#00ff41] hover:text-black transition-colors'
-                      onClick={() => {
-                        setChatId(s.chatId);
-                        setChatMessagesLoaded(false);
-                        setMessages([]);
-                      }}
-                      title='Open chat'
-                    >
-                      open
-                    </button>
-                    <button
-                      className='bg-black text-red-400 border border-red-400 px-2 py-0.5 font-mono hover:bg-red-400 hover:text-black transition-colors'
-                      onClick={async () => {
-                        const ok = await deleteFlowiseChat(
-                          'http://localhost:3000',
-                          selectedAgentId,
-                          s.chatId,
-                          apiKey
-                        );
-                        if (ok) {
-                          setSessions((prev) =>
-                            prev.filter((x) => x.chatId !== s.chatId)
-                          );
-                          if (chatId === s.chatId) {
-                            setMessages([]);
-                          }
-                        }
-                      }}
-                      title='Delete chat'
-                    >
-                      del
-                    </button>
-                    <span className='text-[#00ff41] break-all'>{s.chatId}</span>
-                    <span className='text-[#00ff41] opacity-60'>
-                      {s.lastAt ? new Date(s.lastAt).toLocaleString() : ''}
-                    </span>
-                    <span className='text-[#00ff41] opacity-60'>
-                      ({s.count})
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <SessionList
+            sessions={sessions}
+            onOpen={(openId) => {
+              setChatId(openId);
+              setChatMessagesLoaded(false);
+              setMessages([]);
+            }}
+            onDelete={async (delId) => {
+              const ok = await deleteFlowiseChat(
+                flowiseUrl,
+                selectedAgentId,
+                delId,
+                apiKey
+              );
+              if (ok) {
+                setSessions((prev) => prev.filter((x) => x.chatId !== delId));
+                if (chatId === delId) {
+                  setMessages([]);
+                }
+              }
+            }}
+          />
         )}
 
         <main
@@ -1031,11 +948,8 @@ const Chat: React.FC = () => {
         >
           <ChatMessages
             messages={messages}
-            isLoading={isLoading}
             messagesEndRef={messagesEndRef}
             inputValue={inputValue}
-            setInputValue={setInputValue}
-            handleSend={handleSendMessage}
           />
           <input
             ref={inputRef}

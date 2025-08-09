@@ -1,18 +1,16 @@
 /*
  * AgentSelector.tsx
- * Component for fetching and selecting agents from Flowise
+ * Feature: select agent from Flowise
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   fetchFlowiseAgents,
-  validateFlowiseUrl,
   getDefaultFlowiseUrl,
+  validateFlowiseUrl,
 } from '@/shared/lib/flowiseApi';
-import { logInfo, logError, logWarning } from '@/shared/lib/logger';
+import { logError, logInfo, logWarning } from '@/shared/lib/logger';
 import type { FlowiseAgent } from '@/shared/types/flowise';
-
-// Using FlowiseAgent interface from flowiseApi.ts
 
 interface AgentSelectorProps {
   onAgentSelect: (
@@ -75,7 +73,6 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
     fetchAgents();
   }, [flowiseUrl, apiKey]);
 
-  // Автоматически выбираем агента по умолчанию после загрузки
   useEffect(() => {
     if (agents.length > 0 && currentAgentId) {
       const defaultAgent = agents.find((agent) => agent.id === currentAgentId);
@@ -142,9 +139,7 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
             }
           />
           {!sseSupported && (
-            <span className='text-xs text-yellow-400'>
-              (Using regular API - working)
-            </span>
+            <span className='text-xs text-yellow-400'>(Using regular API - working)</span>
           )}
           {sseSupported && (
             <span className='text-xs text-green-400'>(Streaming enabled)</span>
@@ -188,3 +183,5 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
 };
 
 export default AgentSelector;
+
+
