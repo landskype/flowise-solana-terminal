@@ -1,6 +1,6 @@
-# Flowise old terminal style chat
+# Flowise Solana Terminal
 
-A highly authentic terminal-style chat UI, built with React, TypeScript, and Vite. Features Flowise agent integration for dynamic agent selection and management.
+A highly authentic terminal-style chat UI with Solana wallet integration, built with React, TypeScript, and Vite. Features Flowise agent integration for dynamic agent selection and management, plus seamless Solana blockchain interactions.
 
 ## Prerequisites
 
