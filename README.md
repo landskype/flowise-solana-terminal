@@ -1,6 +1,7 @@
-# Flowise Solana Terminal
+<img width="1512" height="777" alt="Screenshot 2025-08-15 в 11 28 38" src="https://github.com/user-attachments/assets/6a3f4624-3eeb-40ee-9cda-8590ea857cea" /># Flowise Solana Terminal
 
 A highly authentic terminal-style chat UI with Solana wallet integration, built with React, TypeScript, and Vite. Features Flowise agent integration for dynamic agent selection and management, plus seamless Solana blockchain interactions.
+<img width="1512" height="777" alt="Screenshot 2025-08-15 в 11 28 38" src="https://github.com/user-attachments/assets/513176f0-ae7d-4973-a4cd-8ff4dd97116d" />
 
 ## Prerequisites
 
