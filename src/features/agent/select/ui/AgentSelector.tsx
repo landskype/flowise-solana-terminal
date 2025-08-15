@@ -139,7 +139,9 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
             }
           />
           {!sseSupported && (
-            <span className='text-xs text-yellow-400'>(Using regular API - working)</span>
+            <span className='text-xs text-yellow-400'>
+              (Using regular API - working)
+            </span>
           )}
           {sseSupported && (
             <span className='text-xs text-green-400'>(Streaming enabled)</span>
@@ -183,5 +185,3 @@ const AgentSelector: React.FC<AgentSelectorProps> = ({
 };
 
 export default AgentSelector;
-
-

@@ -1,15 +1,6 @@
-# Matrix Terminal Chat UI
+# Flowise old terminal style chat
 
-A highly authentic terminal-style chat UI with a Matrix theme, built with React, TypeScript, and Vite. Features Flowise agent integration for dynamic agent selection and management.
-
-## Features
-
-- **Matrix Terminal Theme**: Authentic terminal-style interface with green text and black background
-- **Flowise Integration**: Dynamic agent selection from Flowise chatflows
-- **Markdown Support**: Rich text formatting with code copy functionality
-- **Typing Animation**: Realistic typing effect for bot responses
-- **Auto-scroll**: Smart scrolling behavior
-- **Responsive Design**: Works on desktop and mobile devices
+A highly authentic terminal-style chat UI, built with React, TypeScript, and Vite. Features Flowise agent integration for dynamic agent selection and management.
 
 ## Prerequisites
 
@@ -41,12 +32,3 @@ The chat UI automatically connects to your Flowise server and allows you to:
 2. **Select Agents**: Choose from available chatflows/agents in your Flowise instance
 3. **Dynamic Switching**: Switch between different agents without restarting the application
 4. **Real-time Updates**: Refresh the agent list to see newly created chatflows
-
-### API Endpoints Used
-
-- `GET /api/v1/chatflows` - Fetch all available chatflows
-- `POST /api/v1/prediction/{chatflowId}` - Send messages to specific agents
-
-## License
-
-MIT
